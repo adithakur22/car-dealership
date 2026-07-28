@@ -196,3 +196,45 @@ def test_admin_can_add_vehicle(
         "45000.00"
     )
     assert response_body["quantity"] == 3
+def test_authenticated_user_can_view_persisted_vehicles(
+    client: FastAPITestClient,
+    database_session: Session,
+):
+    admin_headers = create_admin_authentication_headers(
+        client,
+        database_session,
+    )
+
+    creation_response = client.post(
+        "/api/vehicles",
+        headers=admin_headers,
+        json={
+            "make": "Honda",
+            "model": "Civic",
+            "category": "Sedan",
+            "price": "25000.00",
+            "quantity": 4,
+        },
+    )
+
+    assert creation_response.status_code == 201
+
+    user_headers = create_authentication_headers(client)
+
+    list_response = client.get(
+        "/api/vehicles",
+        headers=user_headers,
+    )
+
+    assert list_response.status_code == 200
+
+    vehicles = list_response.json()
+
+    assert len(vehicles) == 1
+    assert vehicles[0]["make"] == "Honda"
+    assert vehicles[0]["model"] == "Civic"
+    assert vehicles[0]["category"] == "Sedan"
+    assert Decimal(str(vehicles[0]["price"])) == Decimal(
+        "25000.00"
+    )
+    assert vehicles[0]["quantity"] == 4
