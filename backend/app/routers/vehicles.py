@@ -5,7 +5,10 @@ from app.database import get_db
 from app.dependencies import get_current_user, require_admin
 from app.models import User, Vehicle
 from app.schemas import VehicleCreate, VehicleResponse
-from app.services.vehicle_service import create_vehicle
+from app.services.vehicle_service import (
+    create_vehicle,
+    get_all_vehicles,
+)
 
 
 router = APIRouter(
@@ -14,11 +17,15 @@ router = APIRouter(
 )
 
 
-@router.get("")
+@router.get(
+    "",
+    response_model=list[VehicleResponse],
+)
 def list_vehicles(
+    database_session: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> list[dict[str, object]]:
-    return []
+) -> list[Vehicle]:
+    return get_all_vehicles(database_session)
 
 
 @router.post(
