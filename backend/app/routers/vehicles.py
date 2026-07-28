@@ -3,6 +3,7 @@ from fastapi import (
     Depends,
     HTTPException,
     Query,
+    Response,
     status,
 )
 from sqlalchemy.orm import Session
@@ -17,10 +18,12 @@ from app.models import User, Vehicle
 from app.schemas import VehicleCreate, VehicleResponse
 from app.services.vehicle_service import (
     create_vehicle,
+    delete_existing_vehicle,
     find_vehicles,
     get_all_vehicles,
     update_existing_vehicle,
 )
+
 from app.exceptions import VehicleNotFoundError
 
 
@@ -113,3 +116,28 @@ def update_vehicle(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(error),
         ) from error
+        
+@router.delete(
+    "/{vehicle_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
+def delete_vehicle(
+    vehicle_id: UUID,
+    database_session: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin),
+) -> Response:
+    try:
+        delete_existing_vehicle(
+            database_session=database_session,
+            vehicle_id=vehicle_id,
+        )
+    except VehicleNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+
+    return Response(
+        status_code=status.HTTP_204_NO_CONTENT
+    )

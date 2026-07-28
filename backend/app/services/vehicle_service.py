@@ -113,3 +113,15 @@ def update_existing_vehicle(
     database_session.refresh(vehicle)
 
     return vehicle
+
+def delete_existing_vehicle(
+    database_session: Session,
+    vehicle_id: UUID,
+) -> None:
+    vehicle = database_session.get(Vehicle, vehicle_id)
+
+    if vehicle is None:
+        raise VehicleNotFoundError
+
+    database_session.delete(vehicle)
+    database_session.commit()
