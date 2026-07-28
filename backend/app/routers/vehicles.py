@@ -1,4 +1,10 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    status,
+)
 from sqlalchemy.orm import Session
 
 from decimal import Decimal
@@ -15,6 +21,7 @@ from app.services.vehicle_service import (
     get_all_vehicles,
     update_existing_vehicle,
 )
+from app.exceptions import VehicleNotFoundError
 
 
 router = APIRouter(
@@ -91,14 +98,18 @@ def update_vehicle(
     database_session: Session = Depends(get_db),
     admin_user: User = Depends(require_admin),
 ) -> Vehicle:
-    updated_vehicle = update_existing_vehicle(
-        database_session=database_session,
-        vehicle_id=vehicle_id,
-        make=vehicle_data.make,
-        model=vehicle_data.model,
-        category=vehicle_data.category,
-        price=vehicle_data.price,
-        quantity=vehicle_data.quantity,
-    )
-
-    return updated_vehicle
+    try:
+        return update_existing_vehicle(
+            database_session=database_session,
+            vehicle_id=vehicle_id,
+            make=vehicle_data.make,
+            model=vehicle_data.model,
+            category=vehicle_data.category,
+            price=vehicle_data.price,
+            quantity=vehicle_data.quantity,
+        )
+    except VehicleNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error

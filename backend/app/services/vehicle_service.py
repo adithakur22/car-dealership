@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Vehicle
 from uuid import UUID
+from app.exceptions import VehicleNotFoundError
 
 
 def create_vehicle(
@@ -100,7 +101,7 @@ def update_existing_vehicle(
     vehicle = database_session.get(Vehicle, vehicle_id)
 
     if vehicle is None:
-        return None
+        raise VehicleNotFoundError()
 
     vehicle.make = make
     vehicle.model = model
