@@ -488,3 +488,31 @@ def test_regular_user_cannot_update_vehicle(
     assert response.json() == {
         "detail": "Admin access required"
     }
+    
+def test_admin_receives_404_when_updating_unknown_vehicle(
+    client: FastAPITestClient,
+    database_session: Session,
+):
+    admin_headers = create_admin_authentication_headers(
+        client,
+        database_session,
+    )
+
+    unknown_vehicle_id = uuid4()
+
+    response = client.put(
+        f"/api/vehicles/{unknown_vehicle_id}",
+        headers=admin_headers,
+        json={
+            "make": "Unknown",
+            "model": "Unknown",
+            "category": "Unknown",
+            "price": "10000.00",
+            "quantity": 1,
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Vehicle not found"
+    }
