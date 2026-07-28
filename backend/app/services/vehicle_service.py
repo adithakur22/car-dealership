@@ -39,3 +39,22 @@ def get_all_vehicles(
     return list(
         database_session.scalars(statement).all()
     )
+    
+def find_vehicles(
+    database_session: Session,
+    make: str | None = None,
+) -> list[Vehicle]:
+    statement = select(Vehicle)
+
+    if make:
+        statement = statement.where(
+            Vehicle.make.ilike(f"%{make.strip()}%")
+        )
+
+    statement = statement.order_by(
+        Vehicle.created_at.desc()
+    )
+
+    return list(
+        database_session.scalars(statement).all()
+    )

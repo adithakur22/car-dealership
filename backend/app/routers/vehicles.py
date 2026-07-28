@@ -7,6 +7,7 @@ from app.models import User, Vehicle
 from app.schemas import VehicleCreate, VehicleResponse
 from app.services.vehicle_service import (
     create_vehicle,
+    find_vehicles,
     get_all_vehicles,
 )
 
@@ -16,6 +17,19 @@ router = APIRouter(
     tags=["Vehicles"],
 )
 
+@router.get(
+    "/search",
+    response_model=list[VehicleResponse],
+)
+def search_vehicles(
+    make: str | None = None,
+    database_session: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[Vehicle]:
+    return find_vehicles(
+        database_session=database_session,
+        make=make,
+    )
 
 @router.get(
     "",
