@@ -43,3 +43,30 @@ def test_registration_rejects_duplicate_email(
     assert second_response.json() == {
         "detail": "Email already registered"
     }
+def test_login_returns_access_token(
+    client: FastAPITestClient,
+):
+    registration_data = {
+        "email": "loginuser@example.com",
+        "password": "StrongPassword123!",
+    }
+
+    registration_response = client.post(
+        "/api/auth/register",
+        json=registration_data,
+    )
+
+    assert registration_response.status_code == 201
+
+    login_response = client.post(
+        "/api/auth/login",
+        json=registration_data,
+    )
+
+    assert login_response.status_code == 200
+
+    response_body = login_response.json()
+
+    assert isinstance(response_body["access_token"], str)
+    assert response_body["access_token"]
+    assert response_body["token_type"] == "bearer"
