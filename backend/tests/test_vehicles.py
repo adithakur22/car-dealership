@@ -600,3 +600,92 @@ def test_regular_user_cannot_delete_vehicle(
 
     assert list_response.status_code == 200
     assert len(list_response.json()) == 1
+    
+def test_purchase_decreases_vehicle_quantity(
+    client: FastAPITestClient,
+    database_session: Session,
+):
+    admin_headers = create_admin_authentication_headers(
+        client,
+        database_session,
+    )
+
+    creation_response = client.post(
+        "/api/vehicles",
+        headers=admin_headers,
+        json={
+            "make": "Hyundai",
+            "model": "Creta",
+            "category": "SUV",
+            "price": "20000.00",
+            "quantity": 2,
+        },
+    )
+    assert creation_response.status_code == 201
+
+    vehicle_id = creation_response.json()["id"]
+    user_headers = create_authentication_headers(client)
+
+    purchase_response = client.post(
+        f"/api/vehicles/{vehicle_id}/purchase",
+        headers=user_headers,
+    )
+
+    assert purchase_response.status_code == 200
+    assert purchase_response.json()["quantity"] == 1
+
+    list_response = client.get(
+        "/api/vehicles",
+        headers=user_headers,
+    )
+
+    assert list_response.status_code == 200
+    assert list_response.json()[0]["quantity"] == 1
+    
+    
+def test_purchase_rejects_out_of_stock_vehicle(
+    client: FastAPITestClient,
+    database_session: Session,
+):
+    admin_headers = create_admin_authentication_headers(
+        client,
+        database_session,
+    )
+
+    creation_response = client.post(
+        "/api/vehicles",
+        headers=admin_headers,
+        json={
+            "make": "Tata",
+            "model": "Nexon",
+            "category": "SUV",
+            "price": "18000.00",
+            "quantity": 0,
+        },
+    )
+    assert creation_response.status_code == 201
+
+    vehicle_id = creation_response.json()["id"]
+    user_headers = create_authentication_headers(client)
+
+    response = client.post(
+        f"/api/vehicles/{vehicle_id}/purchase",
+        headers=user_headers,
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {
+        "detail": "Vehicle is out of stock"
+    }
+    
+def test_purchase_requires_authentication(
+    client: FastAPITestClient,
+):
+    response = client.post(
+        f"/api/vehicles/{uuid4()}/purchase"
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {
+        "detail": "Not authenticated"
+    }
