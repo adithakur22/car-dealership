@@ -1,4 +1,10 @@
 from fastapi.testclient import TestClient as FastAPITestClient
+from datetime import datetime, timedelta, timezone
+from uuid import uuid4
+
+import jwt
+
+from app.config import settings
 
 
 def create_authentication_headers(
@@ -52,3 +58,45 @@ def test_authenticated_user_can_view_empty_inventory(
 
     assert response.status_code == 200
     assert response.json() == []
+def test_vehicle_list_rejects_malformed_token(
+    client: FastAPITestClient,
+):
+    response = client.get(
+        "/api/vehicles",
+        headers={
+            "Authorization": "Bearer this-is-not-a-valid-token"
+        },
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {
+        "detail": "Not authenticated"
+    }
+    assert response.headers["www-authenticate"] == "Bearer"
+
+
+def test_vehicle_list_rejects_expired_token(
+    client: FastAPITestClient,
+):
+    expired_token = jwt.encode(
+        {
+            "sub": str(uuid4()),
+            "exp": datetime.now(timezone.utc)
+            - timedelta(minutes=1),
+        },
+        settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
+    )
+
+    response = client.get(
+        "/api/vehicles",
+        headers={
+            "Authorization": f"Bearer {expired_token}"
+        },
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {
+        "detail": "Not authenticated"
+    }
+    assert response.headers["www-authenticate"] == "Bearer"
