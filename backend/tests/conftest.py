@@ -23,17 +23,25 @@ TestingSessionLocal = sessionmaker(
 
 
 @pytest.fixture()
-def client() -> Generator[TestClient, None, None]:
+def database_session() -> Generator[Session, None, None]:
     Base.metadata.drop_all(bind=test_engine)
     Base.metadata.create_all(bind=test_engine)
 
-    def override_get_db() -> Generator[Session, None, None]:
-        database_session = TestingSessionLocal()
+    session = TestingSessionLocal()
 
-        try:
-            yield database_session
-        finally:
-            database_session.close()
+    try:
+        yield session
+    finally:
+        session.close()
+        Base.metadata.drop_all(bind=test_engine)
+
+
+@pytest.fixture()
+def client(
+    database_session: Session,
+) -> Generator[TestClient, None, None]:
+    def override_get_db() -> Generator[Session, None, None]:
+        yield database_session
 
     app.dependency_overrides[get_db] = override_get_db
 
@@ -42,4 +50,3 @@ def client() -> Generator[TestClient, None, None]:
             yield test_client
     finally:
         app.dependency_overrides.clear()
-        Base.metadata.drop_all(bind=test_engine)
