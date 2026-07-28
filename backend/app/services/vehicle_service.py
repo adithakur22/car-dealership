@@ -43,6 +43,10 @@ def get_all_vehicles(
 def find_vehicles(
     database_session: Session,
     make: str | None = None,
+    model: str | None = None,
+    category: str | None = None,
+    min_price: Decimal | None = None,
+    max_price: Decimal | None = None,
 ) -> list[Vehicle]:
     statement = select(Vehicle)
 
@@ -51,10 +55,35 @@ def find_vehicles(
             Vehicle.make.ilike(f"%{make.strip()}%")
         )
 
+    if model:
+        statement = statement.where(
+            Vehicle.model.ilike(f"%{model.strip()}%")
+        )
+
+    if category:
+        statement = statement.where(
+            Vehicle.category.ilike(
+                f"%{category.strip()}%"
+            )
+        )
+
+    if min_price is not None:
+        statement = statement.where(
+            Vehicle.price >= min_price
+        )
+
+    if max_price is not None:
+        statement = statement.where(
+            Vehicle.price <= max_price
+        )
+
     statement = statement.order_by(
         Vehicle.created_at.desc()
     )
 
+    return list(
+        database_session.scalars(statement).all()
+    )
     return list(
         database_session.scalars(statement).all()
     )

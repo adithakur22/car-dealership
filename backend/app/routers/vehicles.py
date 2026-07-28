@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
+
+from decimal import Decimal
 
 from app.database import get_db
 from app.dependencies import get_current_user, require_admin
@@ -23,12 +25,26 @@ router = APIRouter(
 )
 def search_vehicles(
     make: str | None = None,
+    model: str | None = None,
+    category: str | None = None,
+    min_price: Decimal | None = Query(
+        default=None,
+        ge=0,
+    ),
+    max_price: Decimal | None = Query(
+        default=None,
+        ge=0,
+    ),
     database_session: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[Vehicle]:
     return find_vehicles(
         database_session=database_session,
         make=make,
+        model=model,
+        category=category,
+        min_price=min_price,
+        max_price=max_price,
     )
 
 @router.get(
