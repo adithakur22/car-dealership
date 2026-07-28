@@ -1,7 +1,7 @@
-from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.exceptions import EmailAlreadyRegisteredError
 from app.models import User, UserRole
 from app.security import hash_password
 
@@ -18,10 +18,7 @@ def create_user(
     )
 
     if existing_user is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Email already registered",
-        )
+        raise EmailAlreadyRegisteredError
 
     user = User(
         email=normalized_email,
