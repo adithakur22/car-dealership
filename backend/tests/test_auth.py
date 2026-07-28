@@ -70,3 +70,45 @@ def test_login_returns_access_token(
     assert isinstance(response_body["access_token"], str)
     assert response_body["access_token"]
     assert response_body["token_type"] == "bearer"
+def test_login_rejects_incorrect_password(
+    client: FastAPITestClient,
+):
+    client.post(
+        "/api/auth/register",
+        json={
+            "email": "wrongpassword@example.com",
+            "password": "CorrectPassword123!",
+        },
+    )
+
+    response = client.post(
+        "/api/auth/login",
+        json={
+            "email": "wrongpassword@example.com",
+            "password": "WrongPassword123!",
+        },
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {
+        "detail": "Invalid email or password"
+    }
+    assert response.headers["www-authenticate"] == "Bearer"
+
+
+def test_login_rejects_unknown_user(
+    client: FastAPITestClient,
+):
+    response = client.post(
+        "/api/auth/login",
+        json={
+            "email": "unknown@example.com",
+            "password": "StrongPassword123!",
+        },
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {
+        "detail": "Invalid email or password"
+    }
+    assert response.headers["www-authenticate"] == "Bearer"
