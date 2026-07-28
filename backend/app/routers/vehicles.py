@@ -15,12 +15,17 @@ from uuid import UUID
 from app.database import get_db
 from app.dependencies import get_current_user, require_admin
 from app.models import User, Vehicle
-from app.schemas import VehicleCreate, VehicleResponse
+from app.schemas import (
+    RestockRequest,
+    VehicleCreate,
+    VehicleResponse,
+)
 from app.services.vehicle_service import (
     create_vehicle,
     delete_existing_vehicle,
     find_vehicles,
     get_all_vehicles,
+    restock_existing_vehicle,
     update_existing_vehicle,
     purchase_existing_vehicle,
 )
@@ -166,6 +171,29 @@ def purchase_vehicle(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(error),
         ) from error
+    except VehicleNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+        
+@router.post(
+    "/{vehicle_id}/restock",
+    response_model=VehicleResponse,
+    status_code=status.HTTP_200_OK,
+)
+def restock_vehicle(
+    vehicle_id: UUID,
+    restock_data: RestockRequest,
+    database_session: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin),
+) -> Vehicle:
+    try:
+        return restock_existing_vehicle(
+            database_session=database_session,
+            vehicle_id=vehicle_id,
+            quantity=restock_data.quantity,
+        )
     except VehicleNotFoundError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

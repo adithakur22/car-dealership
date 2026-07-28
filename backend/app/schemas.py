@@ -48,3 +48,6 @@ class VehicleResponse(BaseModel):
     quantity: int
 
     model_config = ConfigDict(from_attributes=True)
+    
+class RestockRequest(BaseModel):
+    quantity: int = Field(gt=0)

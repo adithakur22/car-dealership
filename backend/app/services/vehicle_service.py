@@ -165,3 +165,27 @@ def purchase_existing_vehicle(
     database_session.refresh(purchased_vehicle)
 
     return purchased_vehicle
+
+def restock_existing_vehicle(
+    database_session: Session,
+    vehicle_id: UUID,
+    quantity: int,
+) -> Vehicle:
+    statement = (
+        update(Vehicle)
+        .where(Vehicle.id == vehicle_id)
+        .values(
+            quantity=Vehicle.quantity + quantity
+        )
+        .returning(Vehicle)
+    )
+
+    restocked_vehicle = database_session.scalar(statement)
+
+    if restocked_vehicle is None:
+        raise VehicleNotFoundError
+
+    database_session.commit()
+    database_session.refresh(restocked_vehicle)
+
+    return restocked_vehicle
