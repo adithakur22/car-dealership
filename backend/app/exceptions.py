@@ -10,3 +10,7 @@ class InvalidCredentialsError(Exception):
 class VehicleNotFoundError(Exception):
     def __init__(self) -> None:
         super().__init__("Vehicle not found")
+        
+class VehicleOutOfStockError(Exception):
+    def __init__(self) -> None:
+        super().__init__("Vehicle is out of stock")

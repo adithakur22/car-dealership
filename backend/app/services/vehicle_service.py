@@ -5,7 +5,13 @@ from sqlalchemy.orm import Session
 
 from app.models import Vehicle
 from uuid import UUID
-from app.exceptions import VehicleNotFoundError
+from app.exceptions import (
+    VehicleNotFoundError,
+    VehicleOutOfStockError,
+)
+
+from sqlalchemy import select
+from sqlalchemy import select, update
 
 
 def create_vehicle(
@@ -125,3 +131,37 @@ def delete_existing_vehicle(
 
     database_session.delete(vehicle)
     database_session.commit()
+    
+def purchase_existing_vehicle(
+    database_session: Session,
+    vehicle_id: UUID,
+) -> Vehicle:
+    statement = (
+        update(Vehicle)
+        .where(
+            Vehicle.id == vehicle_id,
+            Vehicle.quantity > 0,
+        )
+        .values(
+            quantity=Vehicle.quantity - 1
+        )
+        .returning(Vehicle)
+    )
+
+    purchased_vehicle = database_session.scalar(statement)
+
+    if purchased_vehicle is None:
+        existing_vehicle = database_session.get(
+            Vehicle,
+            vehicle_id,
+        )
+
+        if existing_vehicle is None:
+            raise VehicleNotFoundError
+
+        raise VehicleOutOfStockError
+
+    database_session.commit()
+    database_session.refresh(purchased_vehicle)
+
+    return purchased_vehicle

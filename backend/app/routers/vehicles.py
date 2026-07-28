@@ -22,9 +22,13 @@ from app.services.vehicle_service import (
     find_vehicles,
     get_all_vehicles,
     update_existing_vehicle,
+    purchase_existing_vehicle,
 )
 
-from app.exceptions import VehicleNotFoundError
+from app.exceptions import (
+    VehicleNotFoundError,
+    VehicleOutOfStockError,
+)
 
 
 router = APIRouter(
@@ -141,3 +145,29 @@ def delete_vehicle(
     return Response(
         status_code=status.HTTP_204_NO_CONTENT
     )
+    
+@router.post(
+    "/{vehicle_id}/purchase",
+    response_model=VehicleResponse,
+    status_code=status.HTTP_200_OK,
+)
+def purchase_vehicle(
+    vehicle_id: UUID,
+    database_session: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Vehicle:
+    try:
+        return purchase_existing_vehicle(
+            database_session=database_session,
+            vehicle_id=vehicle_id,
+        )
+    except VehicleOutOfStockError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    except VehicleNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
