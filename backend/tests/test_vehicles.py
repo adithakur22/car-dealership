@@ -516,3 +516,87 @@ def test_admin_receives_404_when_updating_unknown_vehicle(
     assert response.json() == {
         "detail": "Vehicle not found"
     }
+    
+def test_admin_can_delete_vehicle(
+    client: FastAPITestClient,
+    database_session: Session,
+):
+    admin_headers = create_admin_authentication_headers(
+        client,
+        database_session,
+    )
+
+    creation_response = client.post(
+        "/api/vehicles",
+        headers=admin_headers,
+        json={
+            "make": "Ford",
+            "model": "Mustang",
+            "category": "Sports",
+            "price": "60000.00",
+            "quantity": 2,
+        },
+    )
+    assert creation_response.status_code == 201
+
+    vehicle_id = creation_response.json()["id"]
+
+    delete_response = client.delete(
+        f"/api/vehicles/{vehicle_id}",
+        headers=admin_headers,
+    )
+
+    assert delete_response.status_code == 204
+    assert delete_response.content == b""
+
+    list_response = client.get(
+        "/api/vehicles",
+        headers=admin_headers,
+    )
+
+    assert list_response.status_code == 200
+    assert list_response.json() == []
+
+
+def test_regular_user_cannot_delete_vehicle(
+    client: FastAPITestClient,
+    database_session: Session,
+):
+    admin_headers = create_admin_authentication_headers(
+        client,
+        database_session,
+    )
+
+    creation_response = client.post(
+        "/api/vehicles",
+        headers=admin_headers,
+        json={
+            "make": "Ford",
+            "model": "Mustang",
+            "category": "Sports",
+            "price": "60000.00",
+            "quantity": 2,
+        },
+    )
+    assert creation_response.status_code == 201
+
+    vehicle_id = creation_response.json()["id"]
+    user_headers = create_authentication_headers(client)
+
+    delete_response = client.delete(
+        f"/api/vehicles/{vehicle_id}",
+        headers=user_headers,
+    )
+
+    assert delete_response.status_code == 403
+    assert delete_response.json() == {
+        "detail": "Admin access required"
+    }
+
+    list_response = client.get(
+        "/api/vehicles",
+        headers=admin_headers,
+    )
+
+    assert list_response.status_code == 200
+    assert len(list_response.json()) == 1
