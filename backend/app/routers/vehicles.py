@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 
 from decimal import Decimal
 
+from uuid import UUID
+
 from app.database import get_db
 from app.dependencies import get_current_user, require_admin
 from app.models import User, Vehicle
@@ -11,6 +13,7 @@ from app.services.vehicle_service import (
     create_vehicle,
     find_vehicles,
     get_all_vehicles,
+    update_existing_vehicle,
 )
 
 
@@ -76,3 +79,26 @@ def add_vehicle(
         price=vehicle_data.price,
         quantity=vehicle_data.quantity,
     )
+    
+@router.put(
+    "/{vehicle_id}",
+    response_model=VehicleResponse,
+    status_code=status.HTTP_200_OK,
+)
+def update_vehicle(
+    vehicle_id: UUID,
+    vehicle_data: VehicleCreate,
+    database_session: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin),
+) -> Vehicle:
+    updated_vehicle = update_existing_vehicle(
+        database_session=database_session,
+        vehicle_id=vehicle_id,
+        make=vehicle_data.make,
+        model=vehicle_data.model,
+        category=vehicle_data.category,
+        price=vehicle_data.price,
+        quantity=vehicle_data.quantity,
+    )
+
+    return updated_vehicle

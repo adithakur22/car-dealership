@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Vehicle
+from uuid import UUID
 
 
 def create_vehicle(
@@ -87,3 +88,27 @@ def find_vehicles(
     return list(
         database_session.scalars(statement).all()
     )
+def update_existing_vehicle(
+    database_session: Session,
+    vehicle_id: UUID,
+    make: str,
+    model: str,
+    category: str,
+    price: Decimal,
+    quantity: int,
+) -> Vehicle | None:
+    vehicle = database_session.get(Vehicle, vehicle_id)
+
+    if vehicle is None:
+        return None
+
+    vehicle.make = make
+    vehicle.model = model
+    vehicle.category = category
+    vehicle.price = price
+    vehicle.quantity = quantity
+
+    database_session.commit()
+    database_session.refresh(vehicle)
+
+    return vehicle
