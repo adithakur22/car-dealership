@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import User, UserRole
+from app.models import User
 from app.schemas import UserRegister, UserResponse
-from app.security import hash_password
+from app.services.auth_service import create_user
 
 
 router = APIRouter(
@@ -22,14 +22,8 @@ def register_user(
     registration: UserRegister,
     database_session: Session = Depends(get_db),
 ) -> User:
-    user = User(
-        email=str(registration.email).lower(),
-        password_hash=hash_password(registration.password),
-        role=UserRole.USER,
+    return create_user(
+        database_session=database_session,
+        email=str(registration.email),
+        password=registration.password,
     )
-
-    database_session.add(user)
-    database_session.commit()
-    database_session.refresh(user)
-
-    return user

@@ -1,7 +1,7 @@
-from fastapi.testclient import TestClient
+from fastapi.testclient import TestClient as FastAPITestClient
 
 
-def test_register_user_successfully(client: TestClient):
+def test_register_user_successfully(client: FastAPITestClient):
     response = client.post(
         "/api/auth/register",
         json={
