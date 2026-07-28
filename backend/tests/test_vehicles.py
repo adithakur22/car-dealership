@@ -396,3 +396,95 @@ def test_search_vehicles_by_price_range(
 
     assert len(vehicles) == 1
     assert vehicles[0]["model"] == expected_model
+    
+def test_admin_can_update_vehicle(
+    client: FastAPITestClient,
+    database_session: Session,
+):
+    admin_headers = create_admin_authentication_headers(
+        client,
+        database_session,
+    )
+
+    creation_response = client.post(
+        "/api/vehicles",
+        headers=admin_headers,
+        json={
+            "make": "Toyota",
+            "model": "Fortuner",
+            "category": "SUV",
+            "price": "45000.00",
+            "quantity": 3,
+        },
+    )
+    assert creation_response.status_code == 201
+
+    vehicle_id = creation_response.json()["id"]
+
+    update_response = client.put(
+        f"/api/vehicles/{vehicle_id}",
+        headers=admin_headers,
+        json={
+            "make": "Toyota",
+            "model": "Fortuner Legender",
+            "category": "Premium SUV",
+            "price": "52000.00",
+            "quantity": 5,
+        },
+    )
+
+    assert update_response.status_code == 200
+
+    updated_vehicle = update_response.json()
+
+    assert updated_vehicle["id"] == vehicle_id
+    assert updated_vehicle["make"] == "Toyota"
+    assert updated_vehicle["model"] == "Fortuner Legender"
+    assert updated_vehicle["category"] == "Premium SUV"
+    assert Decimal(str(updated_vehicle["price"])) == Decimal(
+        "52000.00"
+    )
+    assert updated_vehicle["quantity"] == 5
+
+
+def test_regular_user_cannot_update_vehicle(
+    client: FastAPITestClient,
+    database_session: Session,
+):
+    admin_headers = create_admin_authentication_headers(
+        client,
+        database_session,
+    )
+
+    creation_response = client.post(
+        "/api/vehicles",
+        headers=admin_headers,
+        json={
+            "make": "Honda",
+            "model": "Civic",
+            "category": "Sedan",
+            "price": "25000.00",
+            "quantity": 4,
+        },
+    )
+    assert creation_response.status_code == 201
+
+    vehicle_id = creation_response.json()["id"]
+    user_headers = create_authentication_headers(client)
+
+    response = client.put(
+        f"/api/vehicles/{vehicle_id}",
+        headers=user_headers,
+        json={
+            "make": "Honda",
+            "model": "Changed by user",
+            "category": "Sedan",
+            "price": "10000.00",
+            "quantity": 1,
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "detail": "Admin access required"
+    }
