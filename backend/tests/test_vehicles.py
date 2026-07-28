@@ -12,6 +12,8 @@ from sqlalchemy.orm import Session
 
 from app.models import User, UserRole
 
+import pytest
+
 
 def create_authentication_headers(
     client: FastAPITestClient,
@@ -288,3 +290,109 @@ def test_search_vehicles_by_make_case_insensitively(
     assert len(vehicles) == 1
     assert vehicles[0]["make"] == "Toyota"
     assert vehicles[0]["model"] == "Fortuner"
+    
+def populate_search_inventory(
+    client: FastAPITestClient,
+    admin_headers: dict[str, str],
+) -> None:
+    vehicles = [
+        {
+            "make": "Toyota",
+            "model": "Fortuner",
+            "category": "SUV",
+            "price": "45000.00",
+            "quantity": 3,
+        },
+        {
+            "make": "Honda",
+            "model": "Civic",
+            "category": "Sedan",
+            "price": "25000.00",
+            "quantity": 4,
+        },
+        {
+            "make": "Toyota",
+            "model": "Corolla",
+            "category": "Sedan",
+            "price": "15000.00",
+            "quantity": 2,
+        },
+    ]
+
+    for vehicle in vehicles:
+        response = client.post(
+            "/api/vehicles",
+            headers=admin_headers,
+            json=vehicle,
+        )
+        assert response.status_code == 201
+
+@pytest.mark.parametrize(
+    ("query_string", "expected_model"),
+    [
+        ("model=civic", "Civic"),
+        ("category=suv", "Fortuner"),
+    ],
+)
+def test_search_vehicles_by_model_or_category(
+    client: FastAPITestClient,
+    database_session: Session,
+    query_string: str,
+    expected_model: str,
+):
+    admin_headers = create_admin_authentication_headers(
+        client,
+        database_session,
+    )
+    populate_search_inventory(client, admin_headers)
+
+    user_headers = create_authentication_headers(client)
+
+    response = client.get(
+        f"/api/vehicles/search?{query_string}",
+        headers=user_headers,
+    )
+
+    assert response.status_code == 200
+
+    vehicles = response.json()
+
+    assert len(vehicles) == 1
+    assert vehicles[0]["model"] == expected_model
+    
+@pytest.mark.parametrize(
+    ("query_string", "expected_model"),
+    [
+        ("min_price=30000", "Fortuner"),
+        ("max_price=20000", "Corolla"),
+        (
+            "min_price=20000&max_price=30000",
+            "Civic",
+        ),
+    ],
+)
+def test_search_vehicles_by_price_range(
+    client: FastAPITestClient,
+    database_session: Session,
+    query_string: str,
+    expected_model: str,
+):
+    admin_headers = create_admin_authentication_headers(
+        client,
+        database_session,
+    )
+    populate_search_inventory(client, admin_headers)
+
+    user_headers = create_authentication_headers(client)
+
+    response = client.get(
+        f"/api/vehicles/search?{query_string}",
+        headers=user_headers,
+    )
+
+    assert response.status_code == 200
+
+    vehicles = response.json()
+
+    assert len(vehicles) == 1
+    assert vehicles[0]["model"] == expected_model
