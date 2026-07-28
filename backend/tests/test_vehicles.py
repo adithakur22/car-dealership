@@ -689,3 +689,72 @@ def test_purchase_requires_authentication(
     assert response.json() == {
         "detail": "Not authenticated"
     }
+    
+def test_admin_can_restock_vehicle(
+    client: FastAPITestClient,
+    database_session: Session,
+):
+    admin_headers = create_admin_authentication_headers(
+        client,
+        database_session,
+    )
+
+    creation_response = client.post(
+        "/api/vehicles",
+        headers=admin_headers,
+        json={
+            "make": "Mahindra",
+            "model": "Thar",
+            "category": "SUV",
+            "price": "22000.00",
+            "quantity": 2,
+        },
+    )
+    assert creation_response.status_code == 201
+
+    vehicle_id = creation_response.json()["id"]
+
+    restock_response = client.post(
+        f"/api/vehicles/{vehicle_id}/restock",
+        headers=admin_headers,
+        json={"quantity": 5},
+    )
+
+    assert restock_response.status_code == 200
+    assert restock_response.json()["quantity"] == 7
+    
+def test_regular_user_cannot_restock_vehicle(
+    client: FastAPITestClient,
+    database_session: Session,
+):
+    admin_headers = create_admin_authentication_headers(
+        client,
+        database_session,
+    )
+
+    creation_response = client.post(
+        "/api/vehicles",
+        headers=admin_headers,
+        json={
+            "make": "Mahindra",
+            "model": "Thar",
+            "category": "SUV",
+            "price": "22000.00",
+            "quantity": 2,
+        },
+    )
+    assert creation_response.status_code == 201
+
+    vehicle_id = creation_response.json()["id"]
+    user_headers = create_authentication_headers(client)
+
+    restock_response = client.post(
+        f"/api/vehicles/{vehicle_id}/restock",
+        headers=user_headers,
+        json={"quantity": 5},
+    )
+
+    assert restock_response.status_code == 403
+    assert restock_response.json() == {
+        "detail": "Admin access required"
+    }
