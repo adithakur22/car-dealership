@@ -238,3 +238,53 @@ def test_authenticated_user_can_view_persisted_vehicles(
         "25000.00"
     )
     assert vehicles[0]["quantity"] == 4
+    
+def test_search_vehicles_by_make_case_insensitively(
+    client: FastAPITestClient,
+    database_session: Session,
+):
+    admin_headers = create_admin_authentication_headers(
+        client,
+        database_session,
+    )
+
+    toyota_response = client.post(
+        "/api/vehicles",
+        headers=admin_headers,
+        json={
+            "make": "Toyota",
+            "model": "Fortuner",
+            "category": "SUV",
+            "price": "45000.00",
+            "quantity": 3,
+        },
+    )
+    assert toyota_response.status_code == 201
+
+    honda_response = client.post(
+        "/api/vehicles",
+        headers=admin_headers,
+        json={
+            "make": "Honda",
+            "model": "Civic",
+            "category": "Sedan",
+            "price": "25000.00",
+            "quantity": 4,
+        },
+    )
+    assert honda_response.status_code == 201
+
+    user_headers = create_authentication_headers(client)
+
+    response = client.get(
+        "/api/vehicles/search?make=toyota",
+        headers=user_headers,
+    )
+
+    assert response.status_code == 200
+
+    vehicles = response.json()
+
+    assert len(vehicles) == 1
+    assert vehicles[0]["make"] == "Toyota"
+    assert vehicles[0]["model"] == "Fortuner"
