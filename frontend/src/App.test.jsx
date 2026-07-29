@@ -236,4 +236,92 @@ it('loads and displays vehicles for an authenticated user', async () => {
   expect(screen.getByText('$25,000.00')).toBeInTheDocument()
   expect(screen.getByText(/3 in stock/i)).toBeInTheDocument()
 })
+it('filters vehicles by search text and category', async () => {
+  localStorage.setItem('access_token', 'test-jwt-token')
+
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => [
+      {
+        id: 'vehicle-1',
+        make: 'Toyota',
+        model: 'Corolla',
+        category: 'Sedan',
+        price: '25000.00',
+        quantity: 3,
+      },
+      {
+        id: 'vehicle-2',
+        make: 'Toyota',
+        model: 'Fortuner',
+        category: 'SUV',
+        price: '45000.00',
+        quantity: 2,
+      },
+      {
+        id: 'vehicle-3',
+        make: 'Honda',
+        model: 'Civic',
+        category: 'Sedan',
+        price: '27000.00',
+        quantity: 4,
+      },
+    ],
+  })
+
+  vi.stubGlobal('fetch', fetchMock)
+
+  const user = userEvent.setup()
+  render(<App />)
+
+  expect(
+    await screen.findByRole('heading', {
+      name: /toyota corolla/i,
+    }),
+  ).toBeInTheDocument()
+
+  expect(
+    screen.getByRole('heading', {
+      name: /toyota fortuner/i,
+    }),
+  ).toBeInTheDocument()
+
+  expect(
+    screen.getByRole('heading', {
+      name: /honda civic/i,
+    }),
+  ).toBeInTheDocument()
+
+  await user.type(
+    screen.getByRole('searchbox', {
+      name: /search vehicles/i,
+    }),
+    'Toyota',
+  )
+
+  expect(
+    screen.queryByRole('heading', {
+      name: /honda civic/i,
+    }),
+  ).not.toBeInTheDocument()
+
+  await user.selectOptions(
+    screen.getByRole('combobox', {
+      name: /category/i,
+    }),
+    'SUV',
+  )
+
+  expect(
+    screen.queryByRole('heading', {
+      name: /toyota corolla/i,
+    }),
+  ).not.toBeInTheDocument()
+
+  expect(
+    screen.getByRole('heading', {
+      name: /toyota fortuner/i,
+    }),
+  ).toBeInTheDocument()
+})
 })
