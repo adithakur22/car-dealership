@@ -1,8 +1,8 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-export async function registerUser(credentials) {
-  const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+async function postAuthRequest(path, credentials, fallbackMessage) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -13,8 +13,23 @@ export async function registerUser(credentials) {
   const data = await response.json()
 
   if (!response.ok) {
-    throw new Error(data.detail || 'Registration failed')
+    const message =
+      typeof data.detail === 'string' ? data.detail : fallbackMessage
+
+    throw new Error(message)
   }
 
   return data
+}
+
+export function registerUser(credentials) {
+  return postAuthRequest(
+    '/api/auth/register',
+    credentials,
+    'Registration failed',
+  )
+}
+
+export function loginUser(credentials) {
+  return postAuthRequest('/api/auth/login', credentials, 'Login failed')
 }

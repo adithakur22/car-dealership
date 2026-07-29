@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { registerUser } from './services/api'
+import { loginUser, registerUser } from './services/api'
 
 function WelcomeScreen({ onSignIn, onCreateAccount }) {
   return (
@@ -86,7 +86,7 @@ function WelcomeScreen({ onSignIn, onCreateAccount }) {
   )
 }
 
-function AuthForm({ mode, onBack, onSwitch }) {
+function AuthForm({ mode, onBack, onSwitch, onAuthenticated }) {
   const isLogin = mode === 'login'
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -95,11 +95,8 @@ function AuthForm({ mode, onBack, onSwitch }) {
   async function handleSubmit(event) {
     event.preventDefault()
 
-    if (isLogin) {
-      return
-    }
-
-    const formData = new FormData(event.currentTarget)
+    const form = event.currentTarget
+    const formData = new FormData(form)
 
     const credentials = {
       email: formData.get('email'),
@@ -111,9 +108,16 @@ function AuthForm({ mode, onBack, onSwitch }) {
     setIsSubmitting(true)
 
     try {
-      await registerUser(credentials)
-      setMessage('Registration successful. You can now sign in.')
-      event.currentTarget.reset()
+      if (isLogin) {
+        const data = await loginUser(credentials)
+
+        localStorage.setItem('access_token', data.access_token)
+        onAuthenticated()
+      } else {
+        await registerUser(credentials)
+        setMessage('Registration successful. You can now sign in.')
+        form.reset()
+      }
     } catch (requestError) {
       setError(requestError.message)
     } finally {
@@ -232,8 +236,54 @@ function AuthForm({ mode, onBack, onSwitch }) {
   )
 }
 
+function Dashboard({ onLogout }) {
+  return (
+    <main className="min-h-screen bg-slate-950 text-white">
+      <nav className="border-b border-slate-800 bg-slate-900">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+          <div>
+            <p className="text-xl font-bold">
+              Drive<span className="text-cyan-400">Deck</span>
+            </p>
+            <p className="text-xs text-slate-400">Inventory dashboard</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onLogout}
+            className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-300 transition hover:border-red-400 hover:text-red-300"
+          >
+            Log out
+          </button>
+        </div>
+      </nav>
+
+      <section className="mx-auto max-w-7xl px-6 py-12">
+        <p className="font-medium text-cyan-400">Available vehicles</p>
+
+        <h1 className="mt-2 text-4xl font-bold">Vehicle inventory</h1>
+
+        <p className="mt-3 text-slate-400">
+          Your available vehicles will appear here.
+        </p>
+      </section>
+    </main>
+  )
+}
+
 function App() {
-  const [currentScreen, setCurrentScreen] = useState('welcome')
+  const [currentScreen, setCurrentScreen] = useState(() =>
+    localStorage.getItem('access_token') ? 'dashboard' : 'welcome',
+  )
+
+  function handleLogout() {
+    localStorage.removeItem('access_token')
+    setCurrentScreen('welcome')
+  }
+
+  if (currentScreen === 'dashboard') {
+    return <Dashboard onLogout={handleLogout} />
+  }
 
   if (currentScreen === 'login') {
     return (
@@ -241,6 +291,7 @@ function App() {
         mode="login"
         onBack={() => setCurrentScreen('welcome')}
         onSwitch={() => setCurrentScreen('register')}
+        onAuthenticated={() => setCurrentScreen('dashboard')}
       />
     )
   }
