@@ -612,4 +612,100 @@ it('allows an admin user to delete a vehicle', async () => {
     ).not.toBeInTheDocument()
   })
 })
+it('allows an admin user to restock a vehicle', async () => {
+  const payload = window
+    .btoa(
+      JSON.stringify({
+        sub: 'admin@example.com',
+        role: 'ADMIN',
+      }),
+    )
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+
+  const adminToken = `header.${payload}.signature`
+
+  localStorage.setItem('access_token', adminToken)
+
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        {
+          id: 'vehicle-1',
+          make: 'Toyota',
+          model: 'Camry',
+          category: 'Sedan',
+          price: '32000.00',
+          quantity: 2,
+        },
+      ],
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: 'vehicle-1',
+        make: 'Toyota',
+        model: 'Camry',
+        category: 'Sedan',
+        price: '32000.00',
+        quantity: 5,
+      }),
+    })
+
+  vi.stubGlobal('fetch', fetchMock)
+
+  const user = userEvent.setup()
+  render(<App />)
+
+  expect(
+    await screen.findByRole('heading', {
+      name: /toyota camry/i,
+    }),
+  ).toBeInTheDocument()
+
+  await user.click(
+    screen.getByRole('button', {
+      name: /restock toyota camry/i,
+    }),
+  )
+
+  expect(
+    screen.getByRole('heading', {
+      name: /restock toyota camry/i,
+    }),
+  ).toBeInTheDocument()
+
+  await user.type(
+    screen.getByLabelText(/quantity to add/i),
+    '3',
+  )
+
+  await user.click(
+    screen.getByRole('button', {
+      name: /confirm restock/i,
+    }),
+  )
+
+  await waitFor(() => {
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:8000/api/vehicles/vehicle-1/restock',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({
+          quantity: 3,
+        }),
+      },
+    )
+  })
+
+  expect(await screen.findByText('5 in stock')).toBeInTheDocument()
+})
 })
