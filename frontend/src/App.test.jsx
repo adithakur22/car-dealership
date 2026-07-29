@@ -45,4 +45,30 @@ describe('App', () => {
       }),
     ).toBeInTheDocument()
   })
+
+  it('shows the registration form when the user clicks create account', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(
+      screen.getByRole('button', {
+        name: /create account/i,
+      }),
+    )
+
+    expect(
+      screen.getByRole('heading', {
+        name: /create your account/i,
+      }),
+    ).toBeInTheDocument()
+
+    expect(screen.getByLabelText(/email address/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument()
+
+    expect(
+      screen.getByRole('button', {
+        name: /create account/i,
+      }),
+    ).toBeInTheDocument()
+  })
 })
