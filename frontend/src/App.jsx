@@ -4,6 +4,7 @@ import { getRoleFromToken } from './utils/auth'
 
 import {
   createVehicle,
+  deleteVehicle,
   getVehicles,
   loginUser,
   purchaseVehicle,
@@ -423,6 +424,7 @@ function Dashboard({ onLogout }) {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [purchasingVehicleId, setPurchasingVehicleId] = useState(null)
+  const [deletingVehicleId, setDeletingVehicleId] = useState(null)
   const [purchaseMessage, setPurchaseMessage] = useState('')
   const [purchaseError, setPurchaseError] = useState('')
   const [isAddFormOpen, setIsAddFormOpen] = useState(false)
@@ -481,6 +483,38 @@ function Dashboard({ onLogout }) {
       )
     } catch (requestError) {
       setPurchaseError(requestError.message)
+    }
+  }
+
+  async function handleDelete(vehicle) {
+    const confirmed = window.confirm(
+      `Delete ${vehicle.make} ${vehicle.model} from the inventory?`,
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    setDeletingVehicleId(vehicle.id)
+    setPurchaseMessage('')
+    setPurchaseError('')
+
+    try {
+      await deleteVehicle(token, vehicle.id)
+
+      setVehicles((currentVehicles) =>
+        currentVehicles.filter(
+          (currentVehicle) => currentVehicle.id !== vehicle.id,
+        ),
+      )
+
+      setPurchaseMessage(
+        `${vehicle.make} ${vehicle.model} deleted successfully.`,
+      )
+    } catch (requestError) {
+      setPurchaseError(requestError.message)
+    } finally {
+      setDeletingVehicleId(null)
     }
   }
 
@@ -549,6 +583,7 @@ function Dashboard({ onLogout }) {
             <p className="text-xl font-bold">
               Drive<span className="text-cyan-400">Deck</span>
             </p>
+
             <p className="text-xs text-slate-400">
               Inventory dashboard
             </p>
@@ -729,6 +764,20 @@ function Dashboard({ onLogout }) {
                           : 'Out of stock'}
                       </p>
 
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          aria-label={`Delete ${vehicle.make} ${vehicle.model}`}
+                          onClick={() => handleDelete(vehicle)}
+                          disabled={deletingVehicleId === vehicle.id}
+                          className="mt-6 w-full rounded-xl border border-red-800 px-5 py-3 font-semibold text-red-300 transition hover:border-red-500 hover:bg-red-950 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {deletingVehicleId === vehicle.id
+                            ? 'Deleting...'
+                            : 'Delete vehicle'}
+                        </button>
+                      )}
+
                       <button
                         type="button"
                         aria-label={`Purchase ${vehicle.make} ${vehicle.model}`}
@@ -737,7 +786,7 @@ function Dashboard({ onLogout }) {
                           vehicle.quantity === 0 ||
                           purchasingVehicleId === vehicle.id
                         }
-                        className="mt-6 w-full rounded-xl bg-cyan-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                        className="mt-3 w-full rounded-xl bg-cyan-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                       >
                         {vehicle.quantity === 0
                           ? 'Out of stock'

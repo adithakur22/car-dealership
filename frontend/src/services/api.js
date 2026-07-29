@@ -101,3 +101,30 @@ export async function createVehicle(token, vehicle) {
 
   return data
 }
+export async function deleteVehicle(token, vehicleId) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/vehicles/${vehicleId}`,
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  )
+
+  if (!response.ok) {
+    let message = 'Unable to delete vehicle'
+
+    try {
+      const data = await response.json()
+
+      if (typeof data.detail === 'string') {
+        message = data.detail
+      }
+    } catch {
+      // Keep the fallback message when the response has no JSON.
+    }
+
+    throw new Error(message)
+  }
+}
