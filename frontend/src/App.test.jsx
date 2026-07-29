@@ -533,4 +533,83 @@ it('allows an admin user to add a vehicle', async () => {
     }),
   ).toBeInTheDocument()
 })
+it('allows an admin user to delete a vehicle', async () => {
+  const payload = window
+    .btoa(
+      JSON.stringify({
+        sub: 'admin@example.com',
+        role: 'ADMIN',
+      }),
+    )
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+
+  const adminToken = `header.${payload}.signature`
+
+  localStorage.setItem('access_token', adminToken)
+
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        {
+          id: 'vehicle-1',
+          make: 'Toyota',
+          model: 'Camry',
+          category: 'Sedan',
+          price: '32000.00',
+          quantity: 5,
+        },
+      ],
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+    })
+
+  vi.stubGlobal('fetch', fetchMock)
+  vi.stubGlobal('confirm', vi.fn(() => true))
+
+  const user = userEvent.setup()
+  render(<App />)
+
+  expect(
+    await screen.findByRole('heading', {
+      name: /toyota camry/i,
+    }),
+  ).toBeInTheDocument()
+
+  await user.click(
+    screen.getByRole('button', {
+      name: /delete toyota camry/i,
+    }),
+  )
+
+  expect(window.confirm).toHaveBeenCalledWith(
+    'Delete Toyota Camry from the inventory?',
+  )
+
+  await waitFor(() => {
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:8000/api/vehicles/vehicle-1',
+      {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+        },
+      },
+    )
+  })
+
+  await waitFor(() => {
+    expect(
+      screen.queryByRole('heading', {
+        name: /toyota camry/i,
+      }),
+    ).not.toBeInTheDocument()
+  })
+})
 })
