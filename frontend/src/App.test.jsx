@@ -135,14 +135,19 @@ describe('App', () => {
     ).toBeInTheDocument()
   })
 it('logs in, stores the token and opens the inventory dashboard', async () => {
-  const fetchMock = vi.fn().mockResolvedValue({
+const fetchMock = vi
+  .fn()
+  .mockResolvedValueOnce({
     ok: true,
     json: async () => ({
       access_token: 'test-jwt-token',
       token_type: 'bearer',
     }),
   })
-
+  .mockResolvedValueOnce({
+    ok: true,
+    json: async () => [],
+  })
   vi.stubGlobal('fetch', fetchMock)
 
   const user = userEvent.setup()

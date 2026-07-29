@@ -244,6 +244,8 @@ function AuthForm({ mode, onBack, onSwitch, onAuthenticated }) {
 
 function Dashboard({ onLogout }) {
   const [vehicles, setVehicles] = useState([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('all')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -283,6 +285,30 @@ function Dashboard({ onLogout }) {
     }).format(Number(price))
   }
 
+  const categories = [
+    ...new Set(vehicles.map((vehicle) => vehicle.category)),
+  ]
+
+  const normalizedSearch = searchTerm.trim().toLowerCase()
+
+  const filteredVehicles = vehicles.filter((vehicle) => {
+    const searchableValues = [
+      vehicle.make,
+      vehicle.model,
+      vehicle.category,
+    ]
+
+    const matchesSearch = searchableValues.some((value) =>
+      value.toLowerCase().includes(normalizedSearch),
+    )
+
+    const matchesCategory =
+      selectedCategory === 'all' ||
+      vehicle.category === selectedCategory
+
+    return matchesSearch && matchesCategory
+  })
+
   return (
     <main className="min-h-screen bg-slate-950 text-white">
       <nav className="border-b border-slate-800 bg-slate-900">
@@ -309,7 +335,7 @@ function Dashboard({ onLogout }) {
         <h1 className="mt-2 text-4xl font-bold">Vehicle inventory</h1>
 
         <p className="mt-3 text-slate-400">
-          Explore all vehicles currently available at the dealership.
+          Search by make, model or category to find your next vehicle.
         </p>
 
         {isLoading && (
@@ -334,42 +360,100 @@ function Dashboard({ onLogout }) {
         )}
 
         {!isLoading && !error && vehicles.length > 0 && (
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {vehicles.map((vehicle) => (
-              <article
-                key={vehicle.id}
-                className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-lg"
-              >
-                <div className="h-2 bg-gradient-to-r from-cyan-400 to-blue-600" />
+          <>
+            <div className="mt-8 grid gap-4 rounded-2xl border border-slate-800 bg-slate-900 p-5 md:grid-cols-3">
+              <div className="md:col-span-2">
+                <label
+                  htmlFor="vehicle-search"
+                  className="mb-2 block text-sm font-medium text-slate-300"
+                >
+                  Search vehicles
+                </label>
 
-                <div className="p-6">
-                  <p className="text-sm font-semibold uppercase tracking-wider text-cyan-400">
-                    {vehicle.category}
-                  </p>
+                <input
+                  id="vehicle-search"
+                  type="search"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search make, model or category"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
+                />
+              </div>
 
-                  <h2 className="mt-2 text-2xl font-bold">
-                    {vehicle.make} {vehicle.model}
-                  </h2>
+              <div>
+                <label
+                  htmlFor="category-filter"
+                  className="mb-2 block text-sm font-medium text-slate-300"
+                >
+                  Category
+                </label>
 
-                  <p className="mt-6 text-3xl font-bold">
-                    {formatPrice(vehicle.price)}
-                  </p>
+                <select
+                  id="category-filter"
+                  value={selectedCategory}
+                  onChange={(event) =>
+                    setSelectedCategory(event.target.value)
+                  }
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none transition focus:border-cyan-400"
+                >
+                  <option value="all">All categories</option>
 
-                  <p
-                    className={`mt-3 text-sm ${
-                      vehicle.quantity > 0
-                        ? 'text-emerald-400'
-                        : 'text-red-400'
-                    }`}
+                  {categories.map((category) => (
+                    <option key={category} value={category}>
+                      {category} vehicles
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <p className="mt-5 text-sm text-slate-400">
+              Showing {filteredVehicles.length} of {vehicles.length} vehicles
+            </p>
+
+            {filteredVehicles.length === 0 ? (
+              <p className="mt-8 rounded-xl border border-slate-800 bg-slate-900 p-6 text-slate-400">
+                No vehicles match your search.
+              </p>
+            ) : (
+              <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredVehicles.map((vehicle) => (
+                  <article
+                    key={vehicle.id}
+                    className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-lg"
                   >
-                    {vehicle.quantity > 0
-                      ? `${vehicle.quantity} in stock`
-                      : 'Out of stock'}
-                  </p>
-                </div>
-              </article>
-            ))}
-          </div>
+                    <div className="h-2 bg-gradient-to-r from-cyan-400 to-blue-600" />
+
+                    <div className="p-6">
+                      <p className="text-sm font-semibold uppercase tracking-wider text-cyan-400">
+                        {vehicle.category}
+                      </p>
+
+                      <h2 className="mt-2 text-2xl font-bold">
+                        {vehicle.make} {vehicle.model}
+                      </h2>
+
+                      <p className="mt-6 text-3xl font-bold">
+                        {formatPrice(vehicle.price)}
+                      </p>
+
+                      <p
+                        className={`mt-3 text-sm ${
+                          vehicle.quantity > 0
+                            ? 'text-emerald-400'
+                            : 'text-red-400'
+                        }`}
+                      >
+                        {vehicle.quantity > 0
+                          ? `${vehicle.quantity} in stock`
+                          : 'Out of stock'}
+                      </p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </section>
     </main>
