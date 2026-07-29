@@ -4,9 +4,10 @@ import userEvent from '@testing-library/user-event'
 import App from './App'
 
 describe('App', () => {
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
+ afterEach(() => {
+  vi.unstubAllGlobals()
+  localStorage.clear()
+})
 
   it('shows the dealership welcome screen', () => {
     render(<App />)
@@ -133,4 +134,64 @@ describe('App', () => {
       await screen.findByText(/registration successful/i),
     ).toBeInTheDocument()
   })
+it('logs in, stores the token and opens the inventory dashboard', async () => {
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      access_token: 'test-jwt-token',
+      token_type: 'bearer',
+    }),
+  })
+
+  vi.stubGlobal('fetch', fetchMock)
+
+  const user = userEvent.setup()
+  render(<App />)
+
+  await user.click(
+    screen.getByRole('button', {
+      name: /sign in/i,
+    }),
+  )
+
+  await user.type(
+    screen.getByLabelText(/email address/i),
+    'user@example.com',
+  )
+
+  await user.type(
+    screen.getByLabelText(/^password$/i),
+    'Password123',
+  )
+
+  await user.click(
+    screen.getByRole('button', {
+      name: /sign in/i,
+    }),
+  )
+
+  await waitFor(() => {
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:8000/api/auth/login',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: 'user@example.com',
+          password: 'Password123',
+        }),
+      },
+    )
+  })
+
+  expect(localStorage.getItem('access_token')).toBe('test-jwt-token')
+
+  expect(
+    await screen.findByRole('heading', {
+      name: /vehicle inventory/i,
+    }),
+  ).toBeInTheDocument()
+})
 })
