@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { registerUser } from './services/api'
 
 function WelcomeScreen({ onSignIn, onCreateAccount }) {
   return (
@@ -87,9 +88,37 @@ function WelcomeScreen({ onSignIn, onCreateAccount }) {
 
 function AuthForm({ mode, onBack, onSwitch }) {
   const isLogin = mode === 'login'
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
+
+    if (isLogin) {
+      return
+    }
+
+    const formData = new FormData(event.currentTarget)
+
+    const credentials = {
+      email: formData.get('email'),
+      password: formData.get('password'),
+    }
+
+    setMessage('')
+    setError('')
+    setIsSubmitting(true)
+
+    try {
+      await registerUser(credentials)
+      setMessage('Registration successful. You can now sign in.')
+      event.currentTarget.reset()
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -157,11 +186,34 @@ function AuthForm({ mode, onBack, onSwitch }) {
             />
           </div>
 
+          {message && (
+            <p
+              role="status"
+              className="rounded-xl border border-emerald-800 bg-emerald-950 px-4 py-3 text-sm text-emerald-300"
+            >
+              {message}
+            </p>
+          )}
+
+          {error && (
+            <p
+              role="alert"
+              className="rounded-xl border border-red-800 bg-red-950 px-4 py-3 text-sm text-red-300"
+            >
+              {error}
+            </p>
+          )}
+
           <button
             type="submit"
-            className="w-full rounded-xl bg-cyan-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300"
+            disabled={isSubmitting}
+            className="w-full rounded-xl bg-cyan-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isLogin ? 'Sign in' : 'Create account'}
+            {isSubmitting
+              ? 'Please wait...'
+              : isLogin
+                ? 'Sign in'
+                : 'Create account'}
           </button>
         </form>
 
