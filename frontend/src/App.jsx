@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 
 import { getRoleFromToken } from './utils/auth'
-
 import {
   createVehicle,
   deleteVehicle,
@@ -10,8 +9,8 @@ import {
   purchaseVehicle,
   registerUser,
   restockVehicle,
+  updateVehicle,
 } from './services/api'
-
 
 function WelcomeScreen({ onSignIn, onCreateAccount }) {
   return (
@@ -248,15 +247,16 @@ function AuthForm({ mode, onBack, onSwitch, onAuthenticated }) {
   )
 }
 
-function VehicleForm({ onSubmit, onCancel }) {
+function VehicleForm({ vehicle, onSubmit, onCancel }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const isEditing = Boolean(vehicle)
 
   async function handleSubmit(event) {
     event.preventDefault()
 
     const formData = new FormData(event.currentTarget)
 
-    const vehicle = {
+    const vehicleData = {
       make: formData.get('make').trim(),
       model: formData.get('model').trim(),
       category: formData.get('category').trim(),
@@ -267,7 +267,7 @@ function VehicleForm({ onSubmit, onCancel }) {
     setIsSubmitting(true)
 
     try {
-      await onSubmit(vehicle)
+      await onSubmit(vehicleData)
     } finally {
       setIsSubmitting(false)
     }
@@ -283,13 +283,17 @@ function VehicleForm({ onSubmit, onCancel }) {
       <section className="max-h-full w-full max-w-xl overflow-y-auto rounded-3xl border border-slate-700 bg-slate-900 p-7 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="font-medium text-cyan-400">Admin inventory</p>
+            <p className="font-medium text-cyan-400">
+              Admin inventory
+            </p>
 
             <h2
               id="vehicle-form-title"
               className="mt-2 text-3xl font-bold"
             >
-              Add a new vehicle
+              {isEditing
+                ? `Update ${vehicle.make} ${vehicle.model}`
+                : 'Add a new vehicle'}
             </h2>
           </div>
 
@@ -317,6 +321,7 @@ function VehicleForm({ onSubmit, onCancel }) {
                 id="vehicle-make"
                 name="make"
                 required
+                defaultValue={vehicle?.make ?? ''}
                 className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400"
               />
             </div>
@@ -333,6 +338,7 @@ function VehicleForm({ onSubmit, onCancel }) {
                 id="vehicle-model"
                 name="model"
                 required
+                defaultValue={vehicle?.model ?? ''}
                 className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400"
               />
             </div>
@@ -350,6 +356,7 @@ function VehicleForm({ onSubmit, onCancel }) {
               id="vehicle-category"
               name="category"
               required
+              defaultValue={vehicle?.category ?? ''}
               placeholder="Sedan, SUV, Hatchback..."
               className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none placeholder:text-slate-600 focus:border-cyan-400"
             />
@@ -368,9 +375,10 @@ function VehicleForm({ onSubmit, onCancel }) {
                 id="vehicle-price"
                 name="price"
                 type="number"
-                min="0"
+                min="0.01"
                 step="0.01"
                 required
+                defaultValue={vehicle?.price ?? ''}
                 className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400"
               />
             </div>
@@ -390,6 +398,7 @@ function VehicleForm({ onSubmit, onCancel }) {
                 min="0"
                 step="1"
                 required
+                defaultValue={vehicle?.quantity ?? ''}
                 className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400"
               />
             </div>
@@ -409,7 +418,11 @@ function VehicleForm({ onSubmit, onCancel }) {
               disabled={isSubmitting}
               className="rounded-xl bg-cyan-400 px-6 py-3 font-semibold text-slate-950 hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmitting ? 'Saving...' : 'Save vehicle'}
+              {isSubmitting
+                ? 'Saving...'
+                : isEditing
+                  ? 'Save changes'
+                  : 'Save vehicle'}
             </button>
           </div>
         </form>
@@ -510,8 +523,9 @@ function Dashboard({ onLogout }) {
   const [deletingVehicleId, setDeletingVehicleId] = useState(null)
   const [restockingVehicleId, setRestockingVehicleId] = useState(null)
   const [restockVehicleTarget, setRestockVehicleTarget] = useState(null)
-  const [purchaseMessage, setPurchaseMessage] = useState('')
-  const [purchaseError, setPurchaseError] = useState('')
+  const [editVehicleTarget, setEditVehicleTarget] = useState(null)
+  const [actionMessage, setActionMessage] = useState('')
+  const [actionError, setActionError] = useState('')
   const [isAddFormOpen, setIsAddFormOpen] = useState(false)
 
   const token = localStorage.getItem('access_token')
@@ -550,8 +564,8 @@ function Dashboard({ onLogout }) {
   }, [token])
 
   async function handleAddVehicle(vehicle) {
-    setPurchaseMessage('')
-    setPurchaseError('')
+    setActionMessage('')
+    setActionError('')
 
     try {
       const createdVehicle = await createVehicle(token, vehicle)
@@ -563,18 +577,47 @@ function Dashboard({ onLogout }) {
 
       setIsAddFormOpen(false)
 
-      setPurchaseMessage(
+      setActionMessage(
         `${createdVehicle.make} ${createdVehicle.model} added successfully.`,
       )
     } catch (requestError) {
-      setPurchaseError(requestError.message)
+      setActionError(requestError.message)
+    }
+  }
+
+  async function handleUpdateVehicle(vehicle, changes) {
+    setActionMessage('')
+    setActionError('')
+
+    try {
+      const updatedVehicle = await updateVehicle(
+        token,
+        vehicle.id,
+        changes,
+      )
+
+      setVehicles((currentVehicles) =>
+        currentVehicles.map((currentVehicle) =>
+          currentVehicle.id === vehicle.id
+            ? { ...currentVehicle, ...updatedVehicle }
+            : currentVehicle,
+        ),
+      )
+
+      setEditVehicleTarget(null)
+
+      setActionMessage(
+        `${updatedVehicle.make} ${updatedVehicle.model} updated successfully.`,
+      )
+    } catch (requestError) {
+      setActionError(requestError.message)
     }
   }
 
   async function handleRestock(vehicle, quantity) {
     setRestockingVehicleId(vehicle.id)
-    setPurchaseMessage('')
-    setPurchaseError('')
+    setActionMessage('')
+    setActionError('')
 
     try {
       const updatedVehicle = await restockVehicle(
@@ -593,11 +636,11 @@ function Dashboard({ onLogout }) {
 
       setRestockVehicleTarget(null)
 
-      setPurchaseMessage(
+      setActionMessage(
         `${vehicle.make} ${vehicle.model} restocked successfully.`,
       )
     } catch (requestError) {
-      setPurchaseError(requestError.message)
+      setActionError(requestError.message)
     } finally {
       setRestockingVehicleId(null)
     }
@@ -613,8 +656,8 @@ function Dashboard({ onLogout }) {
     }
 
     setDeletingVehicleId(vehicle.id)
-    setPurchaseMessage('')
-    setPurchaseError('')
+    setActionMessage('')
+    setActionError('')
 
     try {
       await deleteVehicle(token, vehicle.id)
@@ -625,11 +668,11 @@ function Dashboard({ onLogout }) {
         ),
       )
 
-      setPurchaseMessage(
+      setActionMessage(
         `${vehicle.make} ${vehicle.model} deleted successfully.`,
       )
     } catch (requestError) {
-      setPurchaseError(requestError.message)
+      setActionError(requestError.message)
     } finally {
       setDeletingVehicleId(null)
     }
@@ -637,8 +680,8 @@ function Dashboard({ onLogout }) {
 
   async function handlePurchase(vehicle) {
     setPurchasingVehicleId(vehicle.id)
-    setPurchaseMessage('')
-    setPurchaseError('')
+    setActionMessage('')
+    setActionError('')
 
     try {
       const updatedVehicle = await purchaseVehicle(token, vehicle.id)
@@ -651,11 +694,11 @@ function Dashboard({ onLogout }) {
         ),
       )
 
-      setPurchaseMessage(
+      setActionMessage(
         `${vehicle.make} ${vehicle.model} purchased successfully.`,
       )
     } catch (requestError) {
-      setPurchaseError(requestError.message)
+      setActionError(requestError.message)
     } finally {
       setPurchasingVehicleId(null)
     }
@@ -735,7 +778,10 @@ function Dashboard({ onLogout }) {
           {isAdmin && (
             <button
               type="button"
-              onClick={() => setIsAddFormOpen(true)}
+              onClick={() => {
+                setEditVehicleTarget(null)
+                setIsAddFormOpen(true)
+              }}
               className="rounded-xl bg-cyan-400 px-6 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300"
             >
               Add vehicle
@@ -750,6 +796,16 @@ function Dashboard({ onLogout }) {
           />
         )}
 
+        {isAdmin && editVehicleTarget && (
+          <VehicleForm
+            vehicle={editVehicleTarget}
+            onSubmit={(changes) =>
+              handleUpdateVehicle(editVehicleTarget, changes)
+            }
+            onCancel={() => setEditVehicleTarget(null)}
+          />
+        )}
+
         {isAdmin && restockVehicleTarget && (
           <RestockForm
             vehicle={restockVehicleTarget}
@@ -760,21 +816,21 @@ function Dashboard({ onLogout }) {
           />
         )}
 
-        {purchaseMessage && (
+        {actionMessage && (
           <p
             role="status"
             className="mt-6 rounded-xl border border-emerald-800 bg-emerald-950 p-4 text-emerald-300"
           >
-            {purchaseMessage}
+            {actionMessage}
           </p>
         )}
 
-        {purchaseError && (
+        {actionError && (
           <p
             role="alert"
             className="mt-6 rounded-xl border border-red-800 bg-red-950 p-4 text-red-300"
           >
-            {purchaseError}
+            {actionError}
           </p>
         )}
 
@@ -892,7 +948,19 @@ function Dashboard({ onLogout }) {
                       </p>
 
                       {isAdmin && (
-                        <div className="mt-6 grid grid-cols-2 gap-3">
+                        <div className="mt-6 grid grid-cols-3 gap-2">
+                          <button
+                            type="button"
+                            aria-label={`Edit ${vehicle.make} ${vehicle.model}`}
+                            onClick={() => {
+                              setIsAddFormOpen(false)
+                              setEditVehicleTarget(vehicle)
+                            }}
+                            className="rounded-xl border border-slate-600 px-3 py-2 text-sm font-semibold text-slate-200 hover:border-slate-400"
+                          >
+                            Edit
+                          </button>
+
                           <button
                             type="button"
                             aria-label={`Restock ${vehicle.make} ${vehicle.model}`}
@@ -902,11 +970,9 @@ function Dashboard({ onLogout }) {
                             disabled={
                               restockingVehicleId === vehicle.id
                             }
-                            className="rounded-xl border border-cyan-800 px-4 py-3 font-semibold text-cyan-300 transition hover:border-cyan-500 hover:bg-cyan-950 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="rounded-xl border border-cyan-800 px-3 py-2 text-sm font-semibold text-cyan-300 hover:border-cyan-500 hover:bg-cyan-950 disabled:opacity-60"
                           >
-                            {restockingVehicleId === vehicle.id
-                              ? 'Restocking...'
-                              : 'Restock'}
+                            Restock
                           </button>
 
                           <button
@@ -916,7 +982,7 @@ function Dashboard({ onLogout }) {
                             disabled={
                               deletingVehicleId === vehicle.id
                             }
-                            className="rounded-xl border border-red-800 px-4 py-3 font-semibold text-red-300 transition hover:border-red-500 hover:bg-red-950 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="rounded-xl border border-red-800 px-3 py-2 text-sm font-semibold text-red-300 hover:border-red-500 hover:bg-red-950 disabled:opacity-60"
                           >
                             {deletingVehicleId === vehicle.id
                               ? 'Deleting...'
