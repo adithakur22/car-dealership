@@ -1,5 +1,11 @@
-import { useState } from 'react'
-import { loginUser, registerUser } from './services/api'
+import { useEffect, useState } from 'react'
+
+import {
+  getVehicles,
+  loginUser,
+  registerUser,
+} from './services/api'
+
 
 function WelcomeScreen({ onSignIn, onCreateAccount }) {
   return (
@@ -237,6 +243,46 @@ function AuthForm({ mode, onBack, onSwitch, onAuthenticated }) {
 }
 
 function Dashboard({ onLogout }) {
+  const [vehicles, setVehicles] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let isCancelled = false
+
+    async function loadVehicles() {
+      try {
+        const token = localStorage.getItem('access_token')
+        const data = await getVehicles(token)
+
+        if (!isCancelled) {
+          setVehicles(data)
+        }
+      } catch (requestError) {
+        if (!isCancelled) {
+          setError(requestError.message)
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    loadVehicles()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [])
+
+  function formatPrice(price) {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(Number(price))
+  }
+
   return (
     <main className="min-h-screen bg-slate-950 text-white">
       <nav className="border-b border-slate-800 bg-slate-900">
@@ -260,12 +306,71 @@ function Dashboard({ onLogout }) {
 
       <section className="mx-auto max-w-7xl px-6 py-12">
         <p className="font-medium text-cyan-400">Available vehicles</p>
-
         <h1 className="mt-2 text-4xl font-bold">Vehicle inventory</h1>
 
         <p className="mt-3 text-slate-400">
-          Your available vehicles will appear here.
+          Explore all vehicles currently available at the dealership.
         </p>
+
+        {isLoading && (
+          <p role="status" className="mt-10 text-slate-300">
+            Loading vehicles...
+          </p>
+        )}
+
+        {error && (
+          <p
+            role="alert"
+            className="mt-10 rounded-xl border border-red-800 bg-red-950 p-4 text-red-300"
+          >
+            {error}
+          </p>
+        )}
+
+        {!isLoading && !error && vehicles.length === 0 && (
+          <p className="mt-10 rounded-xl border border-slate-800 bg-slate-900 p-6 text-slate-400">
+            No vehicles are currently available.
+          </p>
+        )}
+
+        {!isLoading && !error && vehicles.length > 0 && (
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {vehicles.map((vehicle) => (
+              <article
+                key={vehicle.id}
+                className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-lg"
+              >
+                <div className="h-2 bg-gradient-to-r from-cyan-400 to-blue-600" />
+
+                <div className="p-6">
+                  <p className="text-sm font-semibold uppercase tracking-wider text-cyan-400">
+                    {vehicle.category}
+                  </p>
+
+                  <h2 className="mt-2 text-2xl font-bold">
+                    {vehicle.make} {vehicle.model}
+                  </h2>
+
+                  <p className="mt-6 text-3xl font-bold">
+                    {formatPrice(vehicle.price)}
+                  </p>
+
+                  <p
+                    className={`mt-3 text-sm ${
+                      vehicle.quantity > 0
+                        ? 'text-emerald-400'
+                        : 'text-red-400'
+                    }`}
+                  >
+                    {vehicle.quantity > 0
+                      ? `${vehicle.quantity} in stock`
+                      : 'Out of stock'}
+                  </p>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
     </main>
   )

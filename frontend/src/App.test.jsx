@@ -194,4 +194,46 @@ it('logs in, stores the token and opens the inventory dashboard', async () => {
     }),
   ).toBeInTheDocument()
 })
+it('loads and displays vehicles for an authenticated user', async () => {
+  localStorage.setItem('access_token', 'test-jwt-token')
+
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => [
+      {
+        id: 'vehicle-123',
+        make: 'Toyota',
+        model: 'Corolla',
+        category: 'Sedan',
+        price: '25000.00',
+        quantity: 3,
+      },
+    ],
+  })
+
+  vi.stubGlobal('fetch', fetchMock)
+
+  render(<App />)
+
+  await waitFor(() => {
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:8000/api/vehicles',
+      {
+        headers: {
+          Authorization: 'Bearer test-jwt-token',
+        },
+      },
+    )
+  })
+
+  expect(
+    await screen.findByRole('heading', {
+      name: /toyota corolla/i,
+    }),
+  ).toBeInTheDocument()
+
+  expect(screen.getByText('Sedan')).toBeInTheDocument()
+  expect(screen.getByText('$25,000.00')).toBeInTheDocument()
+  expect(screen.getByText(/3 in stock/i)).toBeInTheDocument()
+})
 })

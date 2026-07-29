@@ -33,3 +33,24 @@ export function registerUser(credentials) {
 export function loginUser(credentials) {
   return postAuthRequest('/api/auth/login', credentials, 'Login failed')
 }
+
+export async function getVehicles(token) {
+  const response = await fetch(`${API_BASE_URL}/api/vehicles`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    const message =
+      typeof data.detail === 'string'
+        ? data.detail
+        : 'Unable to load vehicles'
+
+    throw new Error(message)
+  }
+
+  return data
+}
