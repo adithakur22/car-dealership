@@ -1,4 +1,6 @@
-function App() {
+import { useState } from 'react'
+
+function WelcomeScreen({ onSignIn }) {
   return (
     <main className="min-h-screen bg-slate-950 text-white">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
@@ -25,13 +27,14 @@ function App() {
           </h1>
 
           <p className="mt-6 max-w-xl text-lg leading-8 text-slate-300">
-            Search our vehicle inventory, compare available cars and purchase
-            your favourite vehicle from one simple dashboard.
+            Search our inventory, compare available cars and purchase your
+            favourite vehicle from one simple dashboard.
           </p>
 
           <div className="mt-9 flex flex-col gap-4 sm:flex-row">
             <button
               type="button"
+              onClick={onSignIn}
               className="rounded-xl bg-cyan-400 px-7 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300"
             >
               Sign in
@@ -51,7 +54,9 @@ function App() {
             <p className="text-sm font-semibold uppercase tracking-widest">
               Featured inventory
             </p>
+
             <p className="mt-16 text-4xl font-bold">Built for every road.</p>
+
             <p className="mt-3 max-w-sm text-slate-900/80">
               Sedans, SUVs, hatchbacks and more—all managed from one place.
             </p>
@@ -77,6 +82,95 @@ function App() {
       </section>
     </main>
   )
+}
+
+function LoginForm({ onBack }) {
+  function handleSubmit(event) {
+    event.preventDefault()
+  }
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 py-12 text-white">
+      <section className="w-full max-w-md rounded-3xl border border-slate-700 bg-slate-900 p-8 shadow-2xl">
+        <button
+          type="button"
+          onClick={onBack}
+          className="mb-8 text-sm text-slate-400 transition hover:text-cyan-300"
+        >
+          ← Back to welcome
+        </button>
+
+        <p className="text-sm font-semibold uppercase tracking-widest text-cyan-400">
+          DriveDeck
+        </p>
+
+        <h1 className="mt-3 text-3xl font-bold">
+          Sign in to your account
+        </h1>
+
+        <p className="mt-2 text-slate-400">
+          Access the dealership inventory dashboard.
+        </p>
+
+        <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+          <div>
+            <label
+              htmlFor="email"
+              className="mb-2 block text-sm font-medium text-slate-200"
+            >
+              Email address
+            </label>
+
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="you@example.com"
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="password"
+              className="mb-2 block text-sm font-medium text-slate-200"
+            >
+              Password
+            </label>
+
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              autoComplete="current-password"
+              placeholder="Enter your password"
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="w-full rounded-xl bg-cyan-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300"
+          >
+            Sign in
+          </button>
+        </form>
+      </section>
+    </main>
+  )
+}
+
+function App() {
+  const [currentScreen, setCurrentScreen] = useState('welcome')
+
+  if (currentScreen === 'login') {
+    return <LoginForm onBack={() => setCurrentScreen('welcome')} />
+  }
+
+  return <WelcomeScreen onSignIn={() => setCurrentScreen('login')} />
 }
 
 export default App
