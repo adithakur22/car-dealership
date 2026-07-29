@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-function WelcomeScreen({ onSignIn }) {
+function WelcomeScreen({ onSignIn, onCreateAccount }) {
   return (
     <main className="min-h-screen bg-slate-950 text-white">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
@@ -42,6 +42,7 @@ function WelcomeScreen({ onSignIn }) {
 
             <button
               type="button"
+              onClick={onCreateAccount}
               className="rounded-xl border border-slate-600 px-7 py-3 font-semibold transition hover:border-cyan-400 hover:text-cyan-300"
             >
               Create account
@@ -84,7 +85,9 @@ function WelcomeScreen({ onSignIn }) {
   )
 }
 
-function LoginForm({ onBack }) {
+function AuthForm({ mode, onBack, onSwitch }) {
+  const isLogin = mode === 'login'
+
   function handleSubmit(event) {
     event.preventDefault()
   }
@@ -105,11 +108,13 @@ function LoginForm({ onBack }) {
         </p>
 
         <h1 className="mt-3 text-3xl font-bold">
-          Sign in to your account
+          {isLogin ? 'Sign in to your account' : 'Create your account'}
         </h1>
 
         <p className="mt-2 text-slate-400">
-          Access the dealership inventory dashboard.
+          {isLogin
+            ? 'Access the dealership inventory dashboard.'
+            : 'Register to explore and purchase available vehicles.'}
         </p>
 
         <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
@@ -145,7 +150,8 @@ function LoginForm({ onBack }) {
               name="password"
               type="password"
               required
-              autoComplete="current-password"
+              minLength="8"
+              autoComplete={isLogin ? 'current-password' : 'new-password'}
               placeholder="Enter your password"
               className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
             />
@@ -155,9 +161,20 @@ function LoginForm({ onBack }) {
             type="submit"
             className="w-full rounded-xl bg-cyan-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300"
           >
-            Sign in
+            {isLogin ? 'Sign in' : 'Create account'}
           </button>
         </form>
+
+        <p className="mt-6 text-center text-sm text-slate-400">
+          {isLogin ? 'New to DriveDeck?' : 'Already have an account?'}{' '}
+          <button
+            type="button"
+            onClick={onSwitch}
+            className="font-semibold text-cyan-400 hover:text-cyan-300"
+          >
+            {isLogin ? 'Create account' : 'Sign in'}
+          </button>
+        </p>
       </section>
     </main>
   )
@@ -167,10 +184,31 @@ function App() {
   const [currentScreen, setCurrentScreen] = useState('welcome')
 
   if (currentScreen === 'login') {
-    return <LoginForm onBack={() => setCurrentScreen('welcome')} />
+    return (
+      <AuthForm
+        mode="login"
+        onBack={() => setCurrentScreen('welcome')}
+        onSwitch={() => setCurrentScreen('register')}
+      />
+    )
   }
 
-  return <WelcomeScreen onSignIn={() => setCurrentScreen('login')} />
+  if (currentScreen === 'register') {
+    return (
+      <AuthForm
+        mode="register"
+        onBack={() => setCurrentScreen('welcome')}
+        onSwitch={() => setCurrentScreen('login')}
+      />
+    )
+  }
+
+  return (
+    <WelcomeScreen
+      onSignIn={() => setCurrentScreen('login')}
+      onCreateAccount={() => setCurrentScreen('register')}
+    />
+  )
 }
 
 export default App
