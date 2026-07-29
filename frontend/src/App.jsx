@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { getRoleFromToken } from './utils/auth'
 
 import {
+  createVehicle,
   getVehicles,
   loginUser,
   purchaseVehicle,
@@ -245,6 +246,176 @@ function AuthForm({ mode, onBack, onSwitch, onAuthenticated }) {
   )
 }
 
+function VehicleForm({ onSubmit, onCancel }) {
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+
+    const formData = new FormData(event.currentTarget)
+
+    const vehicle = {
+      make: formData.get('make').trim(),
+      model: formData.get('model').trim(),
+      category: formData.get('category').trim(),
+      price: Number(formData.get('price')).toFixed(2),
+      quantity: Number(formData.get('quantity')),
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      await onSubmit(vehicle)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="vehicle-form-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 py-8"
+    >
+      <section className="max-h-full w-full max-w-xl overflow-y-auto rounded-3xl border border-slate-700 bg-slate-900 p-7 shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="font-medium text-cyan-400">Admin inventory</p>
+
+            <h2
+              id="vehicle-form-title"
+              className="mt-2 text-3xl font-bold"
+            >
+              Add a new vehicle
+            </h2>
+          </div>
+
+          <button
+            type="button"
+            onClick={onCancel}
+            aria-label="Close vehicle form"
+            className="text-2xl text-slate-400 hover:text-white"
+          >
+            ×
+          </button>
+        </div>
+
+        <form className="mt-7 space-y-5" onSubmit={handleSubmit}>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div>
+              <label
+                htmlFor="vehicle-make"
+                className="mb-2 block text-sm font-medium text-slate-300"
+              >
+                Make
+              </label>
+
+              <input
+                id="vehicle-make"
+                name="make"
+                required
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="vehicle-model"
+                className="mb-2 block text-sm font-medium text-slate-300"
+              >
+                Model
+              </label>
+
+              <input
+                id="vehicle-model"
+                name="model"
+                required
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label
+              htmlFor="vehicle-category"
+              className="mb-2 block text-sm font-medium text-slate-300"
+            >
+              Category
+            </label>
+
+            <input
+              id="vehicle-category"
+              name="category"
+              required
+              placeholder="Sedan, SUV, Hatchback..."
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none placeholder:text-slate-600 focus:border-cyan-400"
+            />
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div>
+              <label
+                htmlFor="vehicle-price"
+                className="mb-2 block text-sm font-medium text-slate-300"
+              >
+                Price
+              </label>
+
+              <input
+                id="vehicle-price"
+                name="price"
+                type="number"
+                min="0"
+                step="0.01"
+                required
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="vehicle-quantity"
+                className="mb-2 block text-sm font-medium text-slate-300"
+              >
+                Quantity
+              </label>
+
+              <input
+                id="vehicle-quantity"
+                name="quantity"
+                type="number"
+                min="0"
+                step="1"
+                required
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="rounded-xl border border-slate-700 px-6 py-3 font-semibold text-slate-300 hover:border-slate-500"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="rounded-xl bg-cyan-400 px-6 py-3 font-semibold text-slate-950 hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSubmitting ? 'Saving...' : 'Save vehicle'}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  )
+}
+
 function Dashboard({ onLogout }) {
   const [vehicles, setVehicles] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -254,6 +425,7 @@ function Dashboard({ onLogout }) {
   const [purchasingVehicleId, setPurchasingVehicleId] = useState(null)
   const [purchaseMessage, setPurchaseMessage] = useState('')
   const [purchaseError, setPurchaseError] = useState('')
+  const [isAddFormOpen, setIsAddFormOpen] = useState(false)
 
   const token = localStorage.getItem('access_token')
   const isAdmin = getRoleFromToken(token) === 'ADMIN'
@@ -263,7 +435,6 @@ function Dashboard({ onLogout }) {
 
     async function loadVehicles() {
       try {
-        const token = localStorage.getItem('access_token')
         const data = await getVehicles(token)
 
         if (!Array.isArray(data)) {
@@ -289,7 +460,29 @@ function Dashboard({ onLogout }) {
     return () => {
       isCancelled = true
     }
-  }, [])
+  }, [token])
+
+  async function handleAddVehicle(vehicle) {
+    setPurchaseMessage('')
+    setPurchaseError('')
+
+    try {
+      const createdVehicle = await createVehicle(token, vehicle)
+
+      setVehicles((currentVehicles) => [
+        createdVehicle,
+        ...currentVehicles,
+      ])
+
+      setIsAddFormOpen(false)
+
+      setPurchaseMessage(
+        `${createdVehicle.make} ${createdVehicle.model} added successfully.`,
+      )
+    } catch (requestError) {
+      setPurchaseError(requestError.message)
+    }
+  }
 
   async function handlePurchase(vehicle) {
     setPurchasingVehicleId(vehicle.id)
@@ -297,7 +490,6 @@ function Dashboard({ onLogout }) {
     setPurchaseError('')
 
     try {
-      const token = localStorage.getItem('access_token')
       const updatedVehicle = await purchaseVehicle(token, vehicle.id)
 
       setVehicles((currentVehicles) =>
@@ -357,7 +549,9 @@ function Dashboard({ onLogout }) {
             <p className="text-xl font-bold">
               Drive<span className="text-cyan-400">Deck</span>
             </p>
-            <p className="text-xs text-slate-400">Inventory dashboard</p>
+            <p className="text-xs text-slate-400">
+              Inventory dashboard
+            </p>
           </div>
 
           <button
@@ -372,29 +566,37 @@ function Dashboard({ onLogout }) {
 
       <section className="mx-auto max-w-7xl px-6 py-12">
         <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
-  <div>
-    <p className="font-medium text-cyan-400">
-      Available vehicles
-    </p>
+          <div>
+            <p className="font-medium text-cyan-400">
+              Available vehicles
+            </p>
 
-    <h1 className="mt-2 text-4xl font-bold">
-      Vehicle inventory
-    </h1>
+            <h1 className="mt-2 text-4xl font-bold">
+              Vehicle inventory
+            </h1>
 
-    <p className="mt-3 text-slate-400">
-      Search the inventory and purchase your next vehicle.
-    </p>
-  </div>
+            <p className="mt-3 text-slate-400">
+              Search the inventory and purchase your next vehicle.
+            </p>
+          </div>
 
-  {isAdmin && (
-    <button
-      type="button"
-      className="rounded-xl bg-cyan-400 px-6 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300"
-    >
-      Add vehicle
-    </button>
-  )}
-</div>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setIsAddFormOpen(true)}
+              className="rounded-xl bg-cyan-400 px-6 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300"
+            >
+              Add vehicle
+            </button>
+          )}
+        </div>
+
+        {isAdmin && isAddFormOpen && (
+          <VehicleForm
+            onSubmit={handleAddVehicle}
+            onCancel={() => setIsAddFormOpen(false)}
+          />
+        )}
 
         {purchaseMessage && (
           <p

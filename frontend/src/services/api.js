@@ -78,3 +78,26 @@ export async function purchaseVehicle(token, vehicleId) {
 
   return data
 }
+export async function createVehicle(token, vehicle) {
+  const response = await fetch(`${API_BASE_URL}/api/vehicles`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(vehicle),
+  })
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    const message =
+      typeof data.detail === 'string'
+        ? data.detail
+        : 'Unable to add vehicle'
+
+    throw new Error(message)
+  }
+
+  return data
+}
