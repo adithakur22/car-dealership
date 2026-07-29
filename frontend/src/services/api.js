@@ -128,3 +128,31 @@ export async function deleteVehicle(token, vehicleId) {
     throw new Error(message)
   }
 }
+export async function restockVehicle(token, vehicleId, quantity) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/vehicles/${vehicleId}/restock`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        quantity,
+      }),
+    },
+  )
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    const message =
+      typeof data.detail === 'string'
+        ? data.detail
+        : 'Unable to restock vehicle'
+
+    throw new Error(message)
+  }
+
+  return data
+}

@@ -9,6 +9,7 @@ import {
   loginUser,
   purchaseVehicle,
   registerUser,
+  restockVehicle,
 } from './services/api'
 
 
@@ -416,6 +417,88 @@ function VehicleForm({ onSubmit, onCancel }) {
     </div>
   )
 }
+function RestockForm({ vehicle, onSubmit, onCancel }) {
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+
+    const formData = new FormData(event.currentTarget)
+    const quantity = Number(formData.get('quantity'))
+
+    setIsSubmitting(true)
+
+    try {
+      await onSubmit(quantity)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="restock-form-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4"
+    >
+      <section className="w-full max-w-md rounded-3xl border border-slate-700 bg-slate-900 p-7 shadow-2xl">
+        <p className="font-medium text-cyan-400">Admin inventory</p>
+
+        <h2
+          id="restock-form-title"
+          className="mt-2 text-3xl font-bold"
+        >
+          Restock {vehicle.make} {vehicle.model}
+        </h2>
+
+        <p className="mt-3 text-slate-400">
+          Current stock: {vehicle.quantity}
+        </p>
+
+        <form className="mt-7 space-y-5" onSubmit={handleSubmit}>
+          <div>
+            <label
+              htmlFor="restock-quantity"
+              className="mb-2 block text-sm font-medium text-slate-300"
+            >
+              Quantity to add
+            </label>
+
+            <input
+              id="restock-quantity"
+              name="quantity"
+              type="number"
+              min="1"
+              step="1"
+              required
+              autoFocus
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400"
+            />
+          </div>
+
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="rounded-xl border border-slate-700 px-6 py-3 font-semibold text-slate-300 hover:border-slate-500"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="rounded-xl bg-cyan-400 px-6 py-3 font-semibold text-slate-950 hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSubmitting ? 'Restocking...' : 'Confirm restock'}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  )
+}
 
 function Dashboard({ onLogout }) {
   const [vehicles, setVehicles] = useState([])
@@ -425,6 +508,8 @@ function Dashboard({ onLogout }) {
   const [error, setError] = useState('')
   const [purchasingVehicleId, setPurchasingVehicleId] = useState(null)
   const [deletingVehicleId, setDeletingVehicleId] = useState(null)
+  const [restockingVehicleId, setRestockingVehicleId] = useState(null)
+  const [restockVehicleTarget, setRestockVehicleTarget] = useState(null)
   const [purchaseMessage, setPurchaseMessage] = useState('')
   const [purchaseError, setPurchaseError] = useState('')
   const [isAddFormOpen, setIsAddFormOpen] = useState(false)
@@ -483,6 +568,38 @@ function Dashboard({ onLogout }) {
       )
     } catch (requestError) {
       setPurchaseError(requestError.message)
+    }
+  }
+
+  async function handleRestock(vehicle, quantity) {
+    setRestockingVehicleId(vehicle.id)
+    setPurchaseMessage('')
+    setPurchaseError('')
+
+    try {
+      const updatedVehicle = await restockVehicle(
+        token,
+        vehicle.id,
+        quantity,
+      )
+
+      setVehicles((currentVehicles) =>
+        currentVehicles.map((currentVehicle) =>
+          currentVehicle.id === vehicle.id
+            ? { ...currentVehicle, ...updatedVehicle }
+            : currentVehicle,
+        ),
+      )
+
+      setRestockVehicleTarget(null)
+
+      setPurchaseMessage(
+        `${vehicle.make} ${vehicle.model} restocked successfully.`,
+      )
+    } catch (requestError) {
+      setPurchaseError(requestError.message)
+    } finally {
+      setRestockingVehicleId(null)
     }
   }
 
@@ -633,6 +750,16 @@ function Dashboard({ onLogout }) {
           />
         )}
 
+        {isAdmin && restockVehicleTarget && (
+          <RestockForm
+            vehicle={restockVehicleTarget}
+            onSubmit={(quantity) =>
+              handleRestock(restockVehicleTarget, quantity)
+            }
+            onCancel={() => setRestockVehicleTarget(null)}
+          />
+        )}
+
         {purchaseMessage && (
           <p
             role="status"
@@ -765,17 +892,37 @@ function Dashboard({ onLogout }) {
                       </p>
 
                       {isAdmin && (
-                        <button
-                          type="button"
-                          aria-label={`Delete ${vehicle.make} ${vehicle.model}`}
-                          onClick={() => handleDelete(vehicle)}
-                          disabled={deletingVehicleId === vehicle.id}
-                          className="mt-6 w-full rounded-xl border border-red-800 px-5 py-3 font-semibold text-red-300 transition hover:border-red-500 hover:bg-red-950 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {deletingVehicleId === vehicle.id
-                            ? 'Deleting...'
-                            : 'Delete vehicle'}
-                        </button>
+                        <div className="mt-6 grid grid-cols-2 gap-3">
+                          <button
+                            type="button"
+                            aria-label={`Restock ${vehicle.make} ${vehicle.model}`}
+                            onClick={() =>
+                              setRestockVehicleTarget(vehicle)
+                            }
+                            disabled={
+                              restockingVehicleId === vehicle.id
+                            }
+                            className="rounded-xl border border-cyan-800 px-4 py-3 font-semibold text-cyan-300 transition hover:border-cyan-500 hover:bg-cyan-950 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {restockingVehicleId === vehicle.id
+                              ? 'Restocking...'
+                              : 'Restock'}
+                          </button>
+
+                          <button
+                            type="button"
+                            aria-label={`Delete ${vehicle.make} ${vehicle.model}`}
+                            onClick={() => handleDelete(vehicle)}
+                            disabled={
+                              deletingVehicleId === vehicle.id
+                            }
+                            className="rounded-xl border border-red-800 px-4 py-3 font-semibold text-red-300 transition hover:border-red-500 hover:bg-red-950 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {deletingVehicleId === vehicle.id
+                              ? 'Deleting...'
+                              : 'Delete'}
+                          </button>
+                        </div>
                       )}
 
                       <button
@@ -805,7 +952,6 @@ function Dashboard({ onLogout }) {
     </main>
   )
 }
-
 function App() {
   const [currentScreen, setCurrentScreen] = useState(() =>
     localStorage.getItem('access_token') ? 'dashboard' : 'welcome',
