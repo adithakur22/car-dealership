@@ -443,4 +443,94 @@ it('shows inventory management controls for an admin user', async () => {
     }),
   ).toBeInTheDocument()
 })
+it('allows an admin user to add a vehicle', async () => {
+  const payload = window
+    .btoa(
+      JSON.stringify({
+        sub: 'admin@example.com',
+        role: 'ADMIN',
+      }),
+    )
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+
+  const adminToken = `header.${payload}.signature`
+
+  localStorage.setItem('access_token', adminToken)
+
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => [],
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: 'vehicle-new',
+        make: 'Toyota',
+        model: 'Camry',
+        category: 'Sedan',
+        price: '32000.00',
+        quantity: 5,
+      }),
+    })
+
+  vi.stubGlobal('fetch', fetchMock)
+
+  const user = userEvent.setup()
+  render(<App />)
+
+  await user.click(
+    await screen.findByRole('button', {
+      name: /add vehicle/i,
+    }),
+  )
+
+  expect(
+    screen.getByRole('heading', {
+      name: /add a new vehicle/i,
+    }),
+  ).toBeInTheDocument()
+
+  await user.type(screen.getByLabelText(/^make$/i), 'Toyota')
+  await user.type(screen.getByLabelText(/^model$/i), 'Camry')
+  await user.type(screen.getByLabelText(/^category$/i), 'Sedan')
+  await user.type(screen.getByLabelText(/^price$/i), '32000.00')
+  await user.type(screen.getByLabelText(/^quantity$/i), '5')
+
+  await user.click(
+    screen.getByRole('button', {
+      name: /save vehicle/i,
+    }),
+  )
+
+  await waitFor(() => {
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:8000/api/vehicles',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({
+          make: 'Toyota',
+          model: 'Camry',
+          category: 'Sedan',
+          price: '32000.00',
+          quantity: 5,
+        }),
+      },
+    )
+  })
+
+  expect(
+    await screen.findByRole('heading', {
+      name: /toyota camry/i,
+    }),
+  ).toBeInTheDocument()
+})
 })
