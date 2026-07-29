@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 
+import { getRoleFromToken } from './utils/auth'
+
 import {
   getVehicles,
   loginUser,
@@ -253,6 +255,9 @@ function Dashboard({ onLogout }) {
   const [purchaseMessage, setPurchaseMessage] = useState('')
   const [purchaseError, setPurchaseError] = useState('')
 
+  const token = localStorage.getItem('access_token')
+  const isAdmin = getRoleFromToken(token) === 'ADMIN'
+
   useEffect(() => {
     let isCancelled = false
 
@@ -366,15 +371,30 @@ function Dashboard({ onLogout }) {
       </nav>
 
       <section className="mx-auto max-w-7xl px-6 py-12">
-        <p className="font-medium text-cyan-400">Available vehicles</p>
+        <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
+  <div>
+    <p className="font-medium text-cyan-400">
+      Available vehicles
+    </p>
 
-        <h1 className="mt-2 text-4xl font-bold">
-          Vehicle inventory
-        </h1>
+    <h1 className="mt-2 text-4xl font-bold">
+      Vehicle inventory
+    </h1>
 
-        <p className="mt-3 text-slate-400">
-          Search the inventory and purchase your next vehicle.
-        </p>
+    <p className="mt-3 text-slate-400">
+      Search the inventory and purchase your next vehicle.
+    </p>
+  </div>
+
+  {isAdmin && (
+    <button
+      type="button"
+      className="rounded-xl bg-cyan-400 px-6 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300"
+    >
+      Add vehicle
+    </button>
+  )}
+</div>
 
         {purchaseMessage && (
           <p
