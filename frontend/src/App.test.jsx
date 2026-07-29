@@ -329,4 +329,81 @@ it('filters vehicles by search text and category', async () => {
     }),
   ).toBeInTheDocument()
 })
+it('purchases an available vehicle and disables out-of-stock purchases', async () => {
+  localStorage.setItem('access_token', 'test-jwt-token')
+
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        {
+          id: 'vehicle-1',
+          make: 'Toyota',
+          model: 'Corolla',
+          category: 'Sedan',
+          price: '25000.00',
+          quantity: 2,
+        },
+        {
+          id: 'vehicle-2',
+          make: 'Honda',
+          model: 'Civic',
+          category: 'Sedan',
+          price: '27000.00',
+          quantity: 0,
+        },
+      ],
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: 'vehicle-1',
+        make: 'Toyota',
+        model: 'Corolla',
+        category: 'Sedan',
+        price: '25000.00',
+        quantity: 1,
+      }),
+    })
+
+  vi.stubGlobal('fetch', fetchMock)
+
+  const user = userEvent.setup()
+  render(<App />)
+
+  expect(
+    await screen.findByRole('heading', {
+      name: /toyota corolla/i,
+    }),
+  ).toBeInTheDocument()
+
+  const availablePurchaseButton = screen.getByRole('button', {
+    name: /purchase toyota corolla/i,
+  })
+
+  const unavailablePurchaseButton = screen.getByRole('button', {
+    name: /purchase honda civic/i,
+  })
+
+  expect(availablePurchaseButton).toBeEnabled()
+  expect(unavailablePurchaseButton).toBeDisabled()
+
+  await user.click(availablePurchaseButton)
+
+  await waitFor(() => {
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:8000/api/vehicles/vehicle-1/purchase',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer test-jwt-token',
+        },
+      },
+    )
+  })
+
+  expect(await screen.findByText('1 in stock')).toBeInTheDocument()
+})
 })
