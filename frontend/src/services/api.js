@@ -54,3 +54,27 @@ export async function getVehicles(token) {
 
   return data
 }
+export async function purchaseVehicle(token, vehicleId) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/vehicles/${vehicleId}/purchase`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  )
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    const message =
+      typeof data.detail === 'string'
+        ? data.detail
+        : 'Unable to purchase vehicle'
+
+    throw new Error(message)
+  }
+
+  return data
+}

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import {
   getVehicles,
   loginUser,
+  purchaseVehicle,
   registerUser,
 } from './services/api'
 
@@ -248,6 +249,9 @@ function Dashboard({ onLogout }) {
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [purchasingVehicleId, setPurchasingVehicleId] = useState(null)
+  const [purchaseMessage, setPurchaseMessage] = useState('')
+  const [purchaseError, setPurchaseError] = useState('')
 
   useEffect(() => {
     let isCancelled = false
@@ -256,6 +260,10 @@ function Dashboard({ onLogout }) {
       try {
         const token = localStorage.getItem('access_token')
         const data = await getVehicles(token)
+
+        if (!Array.isArray(data)) {
+          throw new Error('Invalid vehicle data received')
+        }
 
         if (!isCancelled) {
           setVehicles(data)
@@ -277,6 +285,33 @@ function Dashboard({ onLogout }) {
       isCancelled = true
     }
   }, [])
+
+  async function handlePurchase(vehicle) {
+    setPurchasingVehicleId(vehicle.id)
+    setPurchaseMessage('')
+    setPurchaseError('')
+
+    try {
+      const token = localStorage.getItem('access_token')
+      const updatedVehicle = await purchaseVehicle(token, vehicle.id)
+
+      setVehicles((currentVehicles) =>
+        currentVehicles.map((currentVehicle) =>
+          currentVehicle.id === vehicle.id
+            ? { ...currentVehicle, ...updatedVehicle }
+            : currentVehicle,
+        ),
+      )
+
+      setPurchaseMessage(
+        `${vehicle.make} ${vehicle.model} purchased successfully.`,
+      )
+    } catch (requestError) {
+      setPurchaseError(requestError.message)
+    } finally {
+      setPurchasingVehicleId(null)
+    }
+  }
 
   function formatPrice(price) {
     return new Intl.NumberFormat('en-US', {
@@ -332,11 +367,32 @@ function Dashboard({ onLogout }) {
 
       <section className="mx-auto max-w-7xl px-6 py-12">
         <p className="font-medium text-cyan-400">Available vehicles</p>
-        <h1 className="mt-2 text-4xl font-bold">Vehicle inventory</h1>
+
+        <h1 className="mt-2 text-4xl font-bold">
+          Vehicle inventory
+        </h1>
 
         <p className="mt-3 text-slate-400">
-          Search by make, model or category to find your next vehicle.
+          Search the inventory and purchase your next vehicle.
         </p>
+
+        {purchaseMessage && (
+          <p
+            role="status"
+            className="mt-6 rounded-xl border border-emerald-800 bg-emerald-950 p-4 text-emerald-300"
+          >
+            {purchaseMessage}
+          </p>
+        )}
+
+        {purchaseError && (
+          <p
+            role="alert"
+            className="mt-6 rounded-xl border border-red-800 bg-red-950 p-4 text-red-300"
+          >
+            {purchaseError}
+          </p>
+        )}
 
         {isLoading && (
           <p role="status" className="mt-10 text-slate-300">
@@ -374,7 +430,9 @@ function Dashboard({ onLogout }) {
                   id="vehicle-search"
                   type="search"
                   value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
+                  onChange={(event) =>
+                    setSearchTerm(event.target.value)
+                  }
                   placeholder="Search make, model or category"
                   className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
                 />
@@ -448,6 +506,23 @@ function Dashboard({ onLogout }) {
                           ? `${vehicle.quantity} in stock`
                           : 'Out of stock'}
                       </p>
+
+                      <button
+                        type="button"
+                        aria-label={`Purchase ${vehicle.make} ${vehicle.model}`}
+                        onClick={() => handlePurchase(vehicle)}
+                        disabled={
+                          vehicle.quantity === 0 ||
+                          purchasingVehicleId === vehicle.id
+                        }
+                        className="mt-6 w-full rounded-xl bg-cyan-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                      >
+                        {vehicle.quantity === 0
+                          ? 'Out of stock'
+                          : purchasingVehicleId === vehicle.id
+                            ? 'Purchasing...'
+                            : 'Purchase'}
+                      </button>
                     </div>
                   </article>
                 ))}
