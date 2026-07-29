@@ -406,4 +406,41 @@ it('purchases an available vehicle and disables out-of-stock purchases', async (
 
   expect(await screen.findByText('1 in stock')).toBeInTheDocument()
 })
+it('shows inventory management controls for an admin user', async () => {
+  const payload = window
+    .btoa(
+      JSON.stringify({
+        sub: 'admin@example.com',
+        role: 'ADMIN',
+      }),
+    )
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+
+  const adminToken = `header.${payload}.signature`
+
+  localStorage.setItem('access_token', adminToken)
+
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => [],
+  })
+
+  vi.stubGlobal('fetch', fetchMock)
+
+  render(<App />)
+
+  expect(
+    await screen.findByRole('heading', {
+      name: /vehicle inventory/i,
+    }),
+  ).toBeInTheDocument()
+
+  expect(
+    await screen.findByRole('button', {
+      name: /add vehicle/i,
+    }),
+  ).toBeInTheDocument()
+})
 })
