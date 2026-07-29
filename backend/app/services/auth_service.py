@@ -57,4 +57,7 @@ def authenticate_user(
     ):
         raise InvalidCredentialsError
 
-    return create_access_token(subject=str(user.id))
+    return create_access_token(
+    subject=str(user.id),
+    role=user.role.value,
+)

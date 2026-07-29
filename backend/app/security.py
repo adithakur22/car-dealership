@@ -23,7 +23,10 @@ def verify_password(
     )
 
 
-def create_access_token(subject: str) -> str:
+def create_access_token(
+    subject: str,
+    role: str | None = None,
+) -> str:
     issued_at = datetime.now(timezone.utc)
     expires_at = issued_at + timedelta(
         minutes=settings.access_token_expire_minutes
@@ -34,6 +37,9 @@ def create_access_token(subject: str) -> str:
         "iat": issued_at,
         "exp": expires_at,
     }
+
+    if role is not None:
+        payload["role"] = role
 
     return jwt.encode(
         payload,
