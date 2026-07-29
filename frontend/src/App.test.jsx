@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import {
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
 
@@ -707,5 +712,127 @@ it('allows an admin user to restock a vehicle', async () => {
   })
 
   expect(await screen.findByText('5 in stock')).toBeInTheDocument()
+})
+it('allows an admin user to update a vehicle', async () => {
+  const payload = window
+    .btoa(
+      JSON.stringify({
+        sub: 'admin@example.com',
+        role: 'ADMIN',
+      }),
+    )
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+
+  const adminToken = `header.${payload}.signature`
+
+  localStorage.setItem('access_token', adminToken)
+
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        {
+          id: 'vehicle-1',
+          make: 'Toyota',
+          model: 'Camry',
+          category: 'Sedan',
+          price: '32000.00',
+          quantity: 5,
+        },
+      ],
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: 'vehicle-1',
+        make: 'Toyota',
+        model: 'Camry Hybrid',
+        category: 'Sedan',
+        price: '35000.00',
+        quantity: 6,
+      }),
+    })
+
+  vi.stubGlobal('fetch', fetchMock)
+
+  const user = userEvent.setup()
+  render(<App />)
+
+  expect(
+    await screen.findByRole('heading', {
+      name: /toyota camry/i,
+    }),
+  ).toBeInTheDocument()
+
+  await user.click(
+    screen.getByRole('button', {
+      name: /edit toyota camry/i,
+    }),
+  )
+
+  const dialog = screen.getByRole('dialog')
+  const editForm = within(dialog)
+
+  expect(
+    editForm.getByRole('heading', {
+      name: /update toyota camry/i,
+    }),
+  ).toBeInTheDocument()
+
+  expect(editForm.getByLabelText(/^make$/i)).toHaveValue('Toyota')
+  expect(editForm.getByLabelText(/^model$/i)).toHaveValue('Camry')
+  expect(editForm.getByLabelText(/^category$/i)).toHaveValue('Sedan')
+  expect(editForm.getByLabelText(/^price$/i)).toHaveValue(32000)
+  expect(editForm.getByLabelText(/^quantity$/i)).toHaveValue(5)
+
+  await user.clear(editForm.getByLabelText(/^model$/i))
+  await user.type(
+    editForm.getByLabelText(/^model$/i),
+    'Camry Hybrid',
+  )
+
+  await user.clear(editForm.getByLabelText(/^price$/i))
+  await user.type(editForm.getByLabelText(/^price$/i), '35000.00')
+
+  await user.clear(editForm.getByLabelText(/^quantity$/i))
+  await user.type(editForm.getByLabelText(/^quantity$/i), '6')
+
+  await user.click(
+    editForm.getByRole('button', {
+      name: /save changes/i,
+    }),
+  )
+
+  await waitFor(() => {
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:8000/api/vehicles/vehicle-1',
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({
+          make: 'Toyota',
+          model: 'Camry Hybrid',
+          category: 'Sedan',
+          price: '35000.00',
+          quantity: 6,
+        }),
+      },
+    )
+  })
+
+  expect(
+    await screen.findByRole('heading', {
+      name: /toyota camry hybrid/i,
+    }),
+  ).toBeInTheDocument()
+
+  expect(screen.getByText('$35,000.00')).toBeInTheDocument()
 })
 })
